@@ -1,14 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { formatCurrency } from '@/lib/formatters';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
-import { MapPin, ImageIcon, DollarSign, Clock, ExternalLink } from 'lucide-react';
+import { MapPin, ImageIcon, ExternalLink, Tag, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ListingCardProps {
   id: string;
   title: string;
-  price: number;
   location?: string;
   mainImageUrl?: string;
   agentSlug?: string;
@@ -26,7 +25,6 @@ export const createListingSlug = (title: string) => {
 const ListingCard = ({
   id,
   title,
-  price,
   location,
   mainImageUrl,
   agentSlug,
@@ -38,7 +36,7 @@ const ListingCard = ({
 
   // Format the description (limit to X characters)
   const shortDescription = description ? 
-    description.length > 80 ? `${description.substring(0, 80)}...` : description 
+    description.length > 100 ? `${description.substring(0, 100)}...` : description 
     : '';
 
   return (
@@ -47,10 +45,10 @@ const ListingCard = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
-      className="group relative overflow-hidden rounded-xl border border-[var(--portal-border)] bg-[var(--portal-card-bg)] shadow-md hover:shadow-lg transition-all"
+      className="group relative overflow-hidden rounded-xl border border-[var(--portal-border)] bg-[var(--portal-card-bg)] shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out"
     >
       {/* Image section */}
-      <div className="relative w-full h-48 overflow-hidden">
+      <div className="relative w-full h-56 overflow-hidden">
         {mainImageUrl ? (
           <img 
             src={mainImageUrl} 
@@ -59,51 +57,61 @@ const ListingCard = ({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-[var(--portal-bg-hover)]">
-            <ImageIcon className="h-12 w-12 text-[var(--portal-text-secondary)]" />
+            <ImageIcon className="h-16 w-16 text-[var(--portal-text-secondary)]/30" />
           </div>
         )}
+
+        {/* Gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
 
         {/* Price tag */}
-        <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg font-semibold flex items-center shadow-lg">
-          <DollarSign className="h-4 w-4 mr-1 text-gold-500" />
+        {/* <div className="absolute bottom-4 left-4 bg-gold-500 text-black px-4 py-2 rounded-lg font-bold text-lg flex items-center shadow-lg">
+          <DollarSign className="h-5 w-5 mr-1" />
           {formatCurrency(price)}
-        </div>
+        </div> */}
 
         {/* Time chip */}
-        {timeAgo && (
-          <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center">
-            <Clock className="h-3 w-3 mr-1" />
+        {/* {timeAgo && (
+          <div className="absolute top-4 right-4 bg-black/60 text-white text-sm px-3 py-1.5 rounded-full flex items-center shadow-md">
+            <Clock className="h-3.5 w-3.5 mr-1" />
             {timeAgo}
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Content section */}
-      <div className="p-4">
-        <h3 className="font-bold text-lg text-[var(--portal-text)] mb-2 line-clamp-1">{title}</h3>
+      <div className="p-6">
+        <h3 className="font-extrabold text-xl text-[var(--portal-text)] mb-3 leading-tight line-clamp-1 group-hover:text-gold-500 transition-colors duration-300 flex items-center">
+          <Tag className="h-5 w-5 mr-2 text-gold-500 flex-shrink-0" />
+          {title}
+        </h3>
         
         {location && (
-          <div className="flex items-start mb-3">
+          <div className="flex items-start mb-4 text-[var(--portal-text-secondary)]">
             <MapPin className="h-4 w-4 text-gold-500 mt-0.5 flex-shrink-0" />
-            <span className="ml-2 text-sm text-[var(--portal-text-secondary)] line-clamp-1">{location}</span>
+            <span className="ml-2 text-sm line-clamp-1">{location}</span>
           </div>
         )}
         
         {shortDescription && (
-          <p className="text-sm text-[var(--portal-text-secondary)] mb-4 line-clamp-2">{shortDescription}</p>
+          <div className="flex items-start mb-6 text-[var(--portal-text-secondary)]">
+            <FileText className="h-4 w-4 text-gold-500 mt-0.5 flex-shrink-0" />
+            <p className="ml-2 text-sm line-clamp-2 leading-relaxed">{shortDescription}</p>
+          </div>
         )}
         
         <Link 
           to={`/${agentSlug}/listing/${createListingSlug(title)}`}
-          className="inline-flex items-center text-gold-500 hover:text-gold-600 font-medium text-sm group-hover:underline transition-colors"
         >
-          View Details
-          <ExternalLink className="h-3.5 w-3.5 ml-1 group-hover:translate-x-0.5 transition-transform" />
+          <Button 
+            variant="default" 
+            className="w-full bg-gold-500 text-black py-2.5 rounded-lg font-semibold text-base shadow-md hover:bg-gold-600 transition-colors duration-300 flex items-center justify-center"
+          >
+            View Details
+            <ExternalLink className="h-4 w-4 ml-2" />
+          </Button>
         </Link>
       </div>
-
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
     </motion.div>
   );
 };

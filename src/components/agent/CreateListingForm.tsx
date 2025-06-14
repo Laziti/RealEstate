@@ -56,10 +56,9 @@ const listingSchema = z.object({
   ], {
     required_error: 'Please select a city',
   }),
-  phone_number: z.string().optional(),
-  whatsapp_link: z.string().optional(),
-  telegram_link: z.string().optional(),
-  progress_status: z.enum(['excavation', 'on_progress', 'semi_finished', 'fully_finished']),
+  progress_status: z.enum(['excavation', 'on_progress', 'semi_finished', 'fully_finished'], {
+    required_error: 'Please select a progress status',
+  }),
   down_payment_percent: z.coerce.number().min(0).max(100).optional(),
   bank_option: z.boolean().default(false)
 });
@@ -77,15 +76,12 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
   const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
   const [additionalImages, setAdditionalImages] = useState<File[]>([]);
   const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [listingPublicUrl, setListingPublicUrl] = useState<string | null>(null);
   
   // Form step state
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
-
-  // Add this near other state declarations
-  const [submitAttempted, setSubmitAttempted] = useState(false);
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [publicListingUrl, setPublicListingUrl] = useState('');
+  const totalSteps = 2;
 
   const form = useForm<ListingFormValues>({
     resolver: zodResolver(listingSchema),
@@ -95,9 +91,6 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       price: undefined,
       location: '',
       city: 'Addis Ababa', // Set default city to match the enum type
-      phone_number: '',
-      whatsapp_link: '',
-      telegram_link: '',
       progress_status: 'fully_finished',
       down_payment_percent: undefined,
       bank_option: false
@@ -163,13 +156,14 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
     switch (step) {
       case 1:
         // Property Details validation
-        const step1Fields: (keyof ListingFormValues)[] = ['title', 'description', 'price', 'location', 'city'];
+        const step1Fields: (keyof ListingFormValues)[] = ['title', 'description', 'price', 'location', 'city', 'progress_status'];
         const isStep1Valid = await form.trigger(step1Fields);
         if (!isStep1Valid) {
           const firstError = step1Fields.find(field => form.formState.errors[field]);
           if (firstError) {
             const element = document.getElementById(firstError);
             if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
               form.setFocus(firstError);
             }
           }
@@ -178,28 +172,16 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       case 2:
         // Property Images validation - require at least main image
         if (!mainImage) {
+          alert('Please upload a main image for the property');
           return false;
         }
         return true;
-      case 3:
-        // Prevent automatic validation/submission when reaching step 3
-        return false;
       default:
         return false;
     }
   };
 
   const handleNextStep = async () => {
-    // Special handling for step 2 to step 3 transition
-    if (currentStep === 2) {
-      if (mainImage) {
-        nextStep(); // Simply advance to step 3 if we have a main image
-      } else {
-        window.scrollTo(0, 0);
-      }
-      return;
-    }
-
     // Handle other step transitions
     const isValid = await validateStep(currentStep);
     if (isValid) {
@@ -217,57 +199,33 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
     };
   }, []);
 
-  // Add debug logging for dialog state
-  useEffect(() => {
-    console.log('[CreateListingForm] showSuccessPopup:', showSuccessPopup);
-  }, [showSuccessPopup]);
-
   const onSubmit = async (values: ListingFormValues) => {
-    // Only proceed if submit was actually attempted (button clicked)
-    if (!submitAttempted) {
-      return;
-    }
-
-    if (!user) {
-      return;
-    }
-
-    if (!mainImage) {
-      setCurrentStep(2);
-      return;
-    }
-    
-    // Check all required fields from all steps
-    const requiredFieldsValid = 
-      values.title && 
-      values.description && 
-      values.price && 
-      values.location &&
-      values.city;
-    
-    if (!requiredFieldsValid) {
-      // Go back to the first step
-      setCurrentStep(1);
-      return;
-    }
-
     setIsSubmitting(true);
-
+    
     try {
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       // 1. Upload main image
-      const mainImageFileName = `${user.id}/${Date.now()}-${mainImage.name}`;
+      if (!mainImage) {
+        throw new Error('Main image is required');
+      }
+
+      const mainImageFileName = `${user.id}/${Date.now()}-main-${mainImage.name}`;
       const { data: mainImageData, error: mainImageError } = await supabase.storage
         .from('listing-images')
         .upload(mainImageFileName, mainImage);
-
-      if (mainImageError) throw mainImageError;
-
-      // Get the public URL for the main image
+        
+      if (mainImageError) {
+        throw mainImageError;
+      }
+      
       const { data: mainImagePublicUrl } = supabase.storage
         .from('listing-images')
         .getPublicUrl(mainImageFileName);
 
-      // 2. Upload additional images if any
+      // 2. Upload additional images
       const additionalImageUrls: string[] = [];
       
       for (let i = 0; i < additionalImages.length; i++) {
@@ -290,33 +248,30 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
         additionalImageUrls.push(publicUrl.publicUrl);
       }
 
-      // 3. Create the listing record in the database
-      const { data: listing, error: listingError } = await supabase
+      // 3. Insert listing into database
+      const { data: listingData, error: listingError } = await supabase
         .from('listings')
-        .insert([
-          {
-            title: values.title,
-            description: values.description,
-            price: values.price,
-            location: values.location,
-            city: values.city,
-            main_image_url: mainImagePublicUrl.publicUrl,
-            additional_image_urls: additionalImageUrls.length > 0 ? additionalImageUrls : null,
-            user_id: user.id,
-            status: 'active',
-            phone_number: values.phone_number || null,
-            whatsapp_link: values.whatsapp_link || null,
-            telegram_link: values.telegram_link || null,
-            progress_status: values.progress_status,
-            down_payment_percent: values.down_payment_percent,
-            bank_option: values.bank_option
-          }
-        ])
-        .select()
-        .single();
+        .insert({
+          user_id: user.id,
+          title: values.title,
+          description: values.description,
+          price: values.price,
+          location: values.location,
+          city: values.city,
+          main_image_url: mainImagePublicUrl.publicUrl,
+          additional_image_urls: additionalImageUrls.length > 0 ? additionalImageUrls : null,
+          progress_status: values.progress_status,
+          down_payment_percent: values.down_payment_percent,
+          bank_option: values.bank_option,
+        })
+        .select();
 
-      if (listingError) throw listingError;
-
+      if (listingError) {
+        throw listingError;
+      }
+      
+      console.log('Listing created successfully:', listingData);
+      
       // Fetch the agent's profile to get their slug
       const { data: agentProfile, error: agentError } = await supabase
         .from('profiles')
@@ -324,13 +279,17 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
         .eq('id', user.id)
         .single();
 
-      if (agentError) throw agentError;
+      if (agentError) {
+        throw agentError;
+      }
 
-      // Set the public listing URL
-      const publicListingUrl = agentProfile.slug
+      const generatedListingUrl = agentProfile.slug
         ? `/${agentProfile.slug}/listing/${createListingSlug(values.title)}`
         : null;
-      setPublicListingUrl(publicListingUrl);
+      
+      setListingPublicUrl(generatedListingUrl);
+      setShowSuccessPopup(true);
+      onSuccess();
       
       // Reset form and state
       form.reset();
@@ -339,14 +298,12 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       setAdditionalImages([]);
       setAdditionalImagePreviews([]);
       setCurrentStep(1);
-      
-      // Show success popup
-      setShowSuccessPopup(true);
+
     } catch (error: any) {
-      console.error('Failed to create listing:', error);
+      console.error('Error creating listing:', error);
+      alert(`Error creating listing: ${error.message}`);
     } finally {
       setIsSubmitting(false);
-      setSubmitAttempted(false);
     }
   };
 
@@ -363,7 +320,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
         {/* Progress bar */}
         <div className="px-8 pt-6">
           <div className="flex items-center mb-4">
-            {[1, 2, 3].map((mapStep) => (
+            {[1, 2].map((mapStep) => (
               <div key={mapStep} style={{ display: 'contents' }}>
                 <div 
                   className={`flex items-center justify-center w-8 h-8 rounded-full ${
@@ -377,14 +334,6 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     } else if (mapStep === currentStep) { // Clicking current step
                       await validateStep(currentStep);
                       window.scrollTo(0,0);
-                    } else if (mapStep === 3) { // Trying to jump to step 3
-                      // Don't allow direct jump to step 3
-                      const canLeaveCurrentStep = await validateStep(currentStep);
-                      if (canLeaveCurrentStep && currentStep === 2) {
-                        goToStep(mapStep);
-                      } else {
-                        window.scrollTo(0,0);
-                      }
                     } else { // Other forward navigation
                       const canLeaveCurrentStep = await validateStep(currentStep);
                       if (canLeaveCurrentStep) {
@@ -397,7 +346,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                 >
                   {mapStep}
                 </div>
-                {mapStep < 3 && (
+                {mapStep < 2 && (
                   <div 
                     className={`flex-1 h-1 mx-2 ${
                       currentStep > mapStep 
@@ -412,14 +361,14 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
           <div className="flex justify-between text-sm text-[var(--portal-text-secondary)] mb-6">
             <div className={currentStep === 1 ? 'text-gold-500 font-medium' : ''}>Property Details</div>
             <div className={currentStep === 2 ? 'text-gold-500 font-medium' : ''}>Property Images</div>
-            <div className={currentStep === 3 ? 'text-gold-500 font-medium' : ''}>Contact Information</div>
           </div>
         </div>
 
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={(e) => e.preventDefault()} // Always prevent default form submission
           onKeyDown={e => {
-            if (currentStep === 3 && e.key === 'Enter') {
+            // Prevent form submission on Enter key on any step
+            if (e.key === 'Enter') {
               e.preventDefault();
             }
           }}
@@ -451,14 +400,31 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                       <p className="mt-1 text-sm text-red-500">{form.formState.errors.title.message}</p>
                     )}
                   </div>
+                  <div className="col-span-1">
+                    <label htmlFor="description" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
+                      Description <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      id="description"
+                      rows={5}
+                      required
+                      placeholder="Describe the property..."
+                      className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all resize-none"
+                      {...form.register('description')}
+                      autoComplete="off"
+                    />
+                    {form.formState.errors.description && (
+                      <p className="mt-1 text-sm text-red-500">{form.formState.errors.description.message}</p>
+                    )}
+                  </div>
 
                   {/* Responsive grid for Price and Location */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="col-span-1">
                       <label htmlFor="price" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                        Price (ETB) <span className="text-red-500">*</span>
+                          Price (ETB) <span className="text-red-500">*</span>
                       </label>
-                      <input
+                      <input 
                         id="price"
                         type="text"
                         inputMode="numeric"
@@ -538,7 +504,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     <label htmlFor="progress_status" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
                       Progress Status <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <select 
                       id="progress_status"
                       className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
                       {...form.register('progress_status')}
@@ -557,7 +523,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     <label htmlFor="down_payment_percent" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
                       Down Payment (%) <span className="text-red-500">*</span>
                     </label>
-                    <input
+                    <input 
                       id="down_payment_percent"
                       type="number"
                       min="0"
@@ -587,24 +553,6 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                       <p className="mt-1 text-sm text-red-500">{form.formState.errors.bank_option.message}</p>
                     )}
                   </div>
-
-                  <div className="col-span-1">
-                    <label htmlFor="description" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                      Description <span className="text-red-500">*</span>
-                  </label>
-                    <textarea
-                      id="description"
-                      rows={5}
-                      required
-                      placeholder="Describe the property..."
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all resize-none"
-                      {...form.register('description')}
-                      autoComplete="off"
-                    />
-                    {form.formState.errors.description && (
-                      <p className="mt-1 text-sm text-red-500">{form.formState.errors.description.message}</p>
-                    )}
-                  </div>
                 </div>
               </motion.div>
             )}
@@ -624,17 +572,17 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     <div className="space-y-1 text-center">
                       {mainImagePreview ? (
                         <div className="relative">
-                  <img 
-                    src={mainImagePreview} 
+                          <img 
+                            src={mainImagePreview} 
                             alt="Property preview" 
                             className="mx-auto h-56 object-cover rounded-md shadow-sm" 
-                  />
+                          />
                           <button
-                    type="button"
-                    onClick={removeMainImage}
+                            type="button"
+                            onClick={removeMainImage}
                             className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md"
-                  >
-                    <X className="h-4 w-4" />
+                          >
+                            <X className="h-4 w-4" />
                           </button>
                         </div>
                       ) : (
@@ -671,39 +619,39 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                               />
                             </label>
                             <p className="text-sm text-[var(--portal-text-secondary)]">or drag and drop</p>
-                </div>
+                          </div>
                           <p className="text-xs text-[var(--portal-text-secondary)] mt-2">
                             PNG, JPG, GIF up to 5MB
                           </p>
                         </>
-              )}
+                      )}
                     </div>
                   </div>
-            </div>
-            
-            <div>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
                     Additional Images (Optional)
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-2">
                     {/* Render existing additional images */}
-                {additionalImagePreviews.map((preview, index) => (
+                    {additionalImagePreviews.map((preview, index) => (
                       <div key={index} className="relative h-36 border rounded-lg overflow-hidden shadow-sm bg-[var(--portal-bg)]/40">
-                    <img 
-                      src={preview} 
-                      alt={`Additional image ${index + 1}`} 
+                        <img 
+                          src={preview} 
+                          alt={`Additional image ${index + 1}`} 
                           className="w-full h-full object-cover"
-                    />
+                        />
                         <button
-                      type="button"
-                      onClick={() => removeAdditionalImage(index)}
+                          type="button"
+                          onClick={() => removeAdditionalImage(index)}
                           className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md"
-                    >
-                      <X className="h-3 w-3" />
+                        >
+                          <X className="h-3 w-3" />
                         </button>
-                  </div>
-                ))}
-                
+                      </div>
+                    ))}
+                    
                     {/* Add more images button */}
                     {additionalImages.length < 5 && (
                       <label
@@ -712,77 +660,25 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                       >
                         <Plus className="h-8 w-8 text-gold-500" />
                         <span className="text-sm text-[var(--portal-text-secondary)] mt-2 font-medium">Add Image</span>
-                    <input 
+                        <input 
                           id="additional-image-upload"
-                      type="file" 
-                      accept="image/*" 
+                          type="file" 
+                          accept="image/*" 
+                          multiple
                           className="sr-only"
-                      onChange={handleAdditionalImagesChange}
-                    />
-                  </label>
-                )}
-              </div>
+                          onChange={handleAdditionalImagesChange}
+                        />
+                      </label>
+                    )}
+                  </div>
                   <p className="text-xs text-[var(--portal-text-secondary)] mt-3">
                     You can upload up to 5 additional images for better property presentation
                   </p>
-            </div>
-              </motion.div>
-            )}
-
-            {/* Contact Information Step */}
-            {currentStep === 3 && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <label htmlFor="phone_number" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                      Phone Number
-                    </label>
-                    <input
-                      id="phone_number"
-                      type="tel"
-                      placeholder="e.g. +251 91 234 5678"
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
-                      {...form.register('phone_number')}
-                      autoComplete="tel"
-                    />
-        </div>
-        
-        <div>
-                    <label htmlFor="whatsapp_link" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                      WhatsApp Link
-                    </label>
-                    <input
-                      id="whatsapp_link"
-                      type="text"
-                      placeholder="e.g. https://wa.me/2519XXXXXXXX" 
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
-                      {...form.register('whatsapp_link')}
-                      autoComplete="off"
-                />
-              </div>
-              
-              <div>
-                    <label htmlFor="telegram_link" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                      Telegram Link
-                    </label>
-                    <input
-                      id="telegram_link"
-                      type="text"
-                            placeholder="e.g. https://t.me/username" 
-                      className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
-                      {...form.register('telegram_link')}
-                      autoComplete="off"
-                    />
-                  </div>
                 </div>
               </motion.div>
             )}
-              </div>
-              
+          </div>
+
           <div className="mt-12 pt-6 border-t border-[var(--portal-border)] flex justify-between items-center">
             {currentStep > 1 && (
               <Button
@@ -804,14 +700,14 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                 Continue
               </Button>
             ) : (
-              <Button 
-                type="submit" 
+              <Button
+                type="button" // Always type="button" to prevent default form submission
                 disabled={isSubmitting}
-                onClick={() => setSubmitAttempted(true)}
+                onClick={form.handleSubmit(onSubmit)} // Directly call handleSubmit here
                 className="ml-auto px-8 py-3 bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-700 hover:to-gold-600 active:from-gold-800 active:to-gold-700 text-black font-medium rounded-lg shadow-md transition-all flex items-center justify-center text-base"
               >
                 {isSubmitting ? (
-                  <>
+                  <> 
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                     Creating Listing...
                   </>
@@ -821,20 +717,20 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
               </Button>
             )}
           </div>
-            </form>
+          </form>
       </div>
+
       <AnimatePresence>
-        {showSuccessPopup && (
+        {showSuccessPopup && (  
           <Dialog open={showSuccessPopup} onOpenChange={setShowSuccessPopup}>
-            <DialogContent>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85 }}
-                transition={{ duration: 0.35, type: 'spring', bounce: 0.4 }}
-                style={{ position: 'relative', overflow: 'visible' }}
-              >
-                <DialogHeader>
+              <DialogContent>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  transition={{ duration: 0.35, type: 'spring', bounce: 0.4 }}
+                  style={{ position: 'relative', overflow: 'visible' }}
+                >
                   <motion.div
                     initial={{ scale: 0, rotate: -30 }}
                     animate={{ scale: 1.1, rotate: 8 }}
@@ -866,39 +762,38 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                   <DialogTitle style={{ textAlign: 'center', fontSize: 28, color: '#FFD700', fontWeight: 700 }}>
                     Congratulations!
                   </DialogTitle>
-                </DialogHeader>
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
-                  style={{ textAlign: 'center', fontSize: 18, color: '#fff', margin: '16px 0 24px 0' }}
-                >
-                  Your listing is live and ready to shine!<br />Share it with the world or view it now.
-                </motion.p>
-                <DialogFooter style={{ justifyContent: 'center', gap: 16 }}>
-                  <motion.button
-                    whileHover={{ scale: 1.08 }}
-                    whileTap={{ scale: 0.96 }}
-                    className="bg-gold-500 hover:bg-gold-600 text-black font-semibold rounded-lg px-6 py-2 text-lg shadow-md transition"
-                    onClick={() => {
-                      if (publicListingUrl) {
-                        navigate(publicListingUrl);
-                      }
-                    }}
+                  <motion.p
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    style={{ textAlign: 'center', fontSize: 18, color: '#fff', margin: '16px 0 24px 0' }}
                   >
-                    View Listing
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.08 }}
-                    whileTap={{ scale: 0.96 }}
-                    className="bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-6 py-2 text-lg transition"
-                    onClick={() => { setShowSuccessPopup(false); onSuccess(); }}
-                  >
-                    Close
-                  </motion.button>
-                </DialogFooter>
-              </motion.div>
-            </DialogContent>
+                    Your listing is live and ready to shine!<br />Share it with the world or view it now.
+                  </motion.p>
+                  <DialogFooter style={{ justifyContent: 'center', gap: 16 }}>
+                    <motion.button
+                      whileHover={{ scale: 1.08 }}
+                      whileTap={{ scale: 0.96 }}
+                      className="bg-gold-500 hover:bg-gold-600 text-black font-semibold rounded-lg px-6 py-2 text-lg shadow-md transition"
+                      onClick={() => {
+                        if (listingPublicUrl) {
+                          navigate(listingPublicUrl);
+                        }
+                      }}
+                    >
+                      View Listing
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.08 }}
+                      whileTap={{ scale: 0.96 }}
+                      className="bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-6 py-2 text-lg transition"
+                      onClick={() => { setShowSuccessPopup(false); onSuccess(); }}
+                    >
+                      Close
+                    </motion.button>
+                  </DialogFooter>
+                </motion.div>
+              </DialogContent>
           </Dialog>
         )}
       </AnimatePresence>

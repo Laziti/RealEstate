@@ -117,6 +117,20 @@ const Auth = () => {
 
         if (roleError) throw roleError;
         
+        // Create user profile with status 'active'
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: signUpData.user.id,
+            user_id: signUpData.user.id,
+            first_name: data.firstName,
+            last_name: data.lastName,
+            phone_number: data.phoneNumber,
+            company: data.company === 'Other' ? data.otherCompany : data.company,
+            status: 'active'
+          });
+        if (profileError) throw profileError;
+        
         reset();
         // Redirect to agent dashboard
         navigate('/dashboard');

@@ -14,13 +14,16 @@ const Index = () => {
     if (user && userRole) {
       if (userRole === 'super_admin') {
         navigate('/admin');
-      } else if (userRole === 'agent' && userStatus === 'approved') {
+      } else if (userRole === 'agent' && (userStatus === 'approved' || userStatus === 'active')) {
         navigate('/dashboard');
       } else if (userRole === 'agent' && userStatus === 'pending_approval') {
         navigate('/pending');
       }
     }
   }, [user, userRole, userStatus, navigate]);
+
+  // Fallback error message for invalid/missing role or status
+  const showRoleStatusError = user && (!userRole || !['super_admin', 'agent'].includes(userRole) || (userRole === 'agent' && !['approved', 'pending_approval'].includes(userStatus)));
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[var(--portal-bg)] to-[var(--portal-card-bg)] text-[var(--portal-text)] overflow-hidden">
@@ -167,6 +170,12 @@ const Index = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.8 }}
               >
+                {showRoleStatusError && (
+                  <div className="bg-red-100 text-red-700 rounded-lg px-4 py-3 mb-4 w-full text-center">
+                    <strong>Account Issue:</strong> Your account role or status is not recognized.<br />
+                    Please contact support or try signing out and in again.
+                  </div>
+                )}
                 {!user ? (
                   <>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>

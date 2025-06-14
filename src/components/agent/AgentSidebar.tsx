@@ -9,6 +9,7 @@ import '@/styles/portal-theme.css';
 import UpgradeSidebar from './UpgradeSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import Logo from '../../../public/Logo.svg';
 
 type AgentSidebarProps = {
   activeTab: string;
@@ -30,37 +31,63 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
   const { signOut, user } = useAuth();
   const [profile, setProfile] = React.useState<any>(null);
   const [paymentDueSoon, setPaymentDueSoon] = React.useState<boolean>(false);
-  const [daysUntilPayment, setDaysUntilPayment] = React.useState<number | null>(null);
   const [daysRemaining, setDaysRemaining] = React.useState<number | null>(null);
+
+  // Returns a string like '1 year, 2 months, 5 days remaining' or '15 days remaining'
+  const getTimeRemaining = (profile: any) => {
+    if (!profile) return null;
+    const endDateRaw = profile.subscription_details?.end_date || profile.subscription_end_date;
+    if (!endDateRaw) return null;
+    const endDate = new Date(endDateRaw);
+    const today = new Date();
+    // Use UTC for both
+    let y1 = today.getUTCFullYear(), m1 = today.getUTCMonth(), d1 = today.getUTCDate();
+    let y2 = endDate.getUTCFullYear(), m2 = endDate.getUTCMonth(), d2 = endDate.getUTCDate();
+    let years = y2 - y1;
+    let months = m2 - m1;
+    let days = d2 - d1;
+    if (days < 0) {
+      months--;
+      // Get days in previous month
+      const prevMonth = new Date(y2, m2, 0);
+      days += prevMonth.getUTCDate();
+    }
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    // If expired
+    if (years < 0 || (years === 0 && months === 0 && days < 0)) return 'Expired';
+    let parts = [];
+    if (years > 0) parts.push(`${years} year${years > 1 ? 's' : ''}`);
+    if (months > 0) parts.push(`${months} month${months > 1 ? 's' : ''}`);
+    if (days > 0 || (years === 0 && months === 0 && days === 0)) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+    return parts.length > 0 ? parts.join(', ') + ' remaining' : 'Expired';
+  };
 
   React.useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
-      const { data, error } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .select('subscription_status, first_name, last_name, subscription_end_date, subscription_details')
-        .eq('user_id', user.id)
-        .single();
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
 
-      if (!error && data) {
-        setProfile(data);
+      if (!error && profile) {
+        setProfile(profile);
         
         // Check subscription status and end date
-        const endDate = data.subscription_end_date || data.subscription_details?.end_date;
-        if (endDate && data.subscription_status === 'pro') {
+        const endDate = profile.subscription_end_date || profile.subscription_details?.end_date;
+        if (endDate && profile.subscription_status === 'pro') {
+          // Only set paymentDueSoon if the subscription is expiring within 7 days, based on the AccountInfo logic
           const paymentDate = new Date(endDate);
           const today = new Date();
-          
-          // Reset time parts for accurate day calculation
-          today.setHours(0, 0, 0, 0);
-          paymentDate.setHours(0, 0, 0, 0);
-          
-          const diffTime = paymentDate.getTime() - today.getTime();
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          setDaysUntilPayment(diffDays);
-          setDaysRemaining(diffDays);
+          const utc1 = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+          const utc2 = Date.UTC(paymentDate.getUTCFullYear(), paymentDate.getUTCMonth(), paymentDate.getUTCDate());
+          const diffDays = Math.ceil((utc2 - utc1) / (1000 * 60 * 60 * 24));
           setPaymentDueSoon(diffDays >= 0 && diffDays <= 7);
+          // daysRemaining will be handled by getTimeRemaining in render
         }
       }
     };
@@ -87,9 +114,10 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
       icon: <User className="h-5 w-5" />,
       action: () => setActiveTab('account'),
       notification: paymentDueSoon,
-      notificationContent: daysUntilPayment !== null 
-        ? `Payment due in ${daysUntilPayment} day${daysUntilPayment === 1 ? '' : 's'}`
-        : undefined
+      notificationContent: profile && profile.subscription_status === 'pro' && getTimeRemaining(profile) !== 'Expired'
+        ? `Payment due: ${getTimeRemaining(profile)}`
+        : profile?.subscription_status === 'pro' && getTimeRemaining(profile) === 'Expired'
+        ? 'Subscription Expired' : undefined
     }
   ];
 
@@ -106,12 +134,9 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full portal-sidebar">
-      <div className="p-6 border-b border-[var(--portal-border)]">
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 rounded-xl bg-gold-500 flex items-center justify-center text-black shadow-lg">
-            <Building className="h-6 w-6" />
-          </div>
-          <h2 className="text-xl font-bold text-[var(--portal-text)]">Agent Portal</h2>
+      <div className="pt-6 border-b border-[var(--portal-border)] overflow-hidden">
+        <div className="flex items-center justify-center h-28 w-full">
+          <img src={Logo} alt="Agent Portal Logo" className="h-full w-full object-cover" />
         </div>
       </div>
       
@@ -185,9 +210,9 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
               </div>
               <div className="flex items-center gap-2">
                 <p className="text-sm text-gold-500">Agent</p>
-                {profile?.subscription_status === 'pro' && daysRemaining !== null && (
+                {profile?.subscription_status === 'pro' && getTimeRemaining(profile) && (
                   <span className="text-xs text-[var(--portal-text-secondary)]">
-                    • {daysRemaining} day{daysRemaining === 1 ? '' : 's'} remaining
+                    • {getTimeRemaining(profile)}
                   </span>
                 )}
               </div>

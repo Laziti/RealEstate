@@ -100,13 +100,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .select('status')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching user status:', error);
         setUserStatus(null);
       } else {
-        setUserStatus(data.status);
+        setUserStatus(data?.status ?? null);
       }
     } catch (error) {
       console.error('Error in fetchUserStatus:', error);
@@ -117,8 +117,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return { error };
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+
+      if (error) {
+        console.error('Sign in error:', error);
+        return { error };
+      }
+
+      if (!data.session) {
+        return { error: new Error('No session created') };
+      }
+
+      // Set session and user
+      setSession(data.session);
+      setUser(data.session.user);
+
+      // Fetch user role and status
+      await fetchUserRole(data.session.user.id);
+      await fetchUserStatus(data.session.user.id);
+
+      return { error: null };
     } catch (error) {
       console.error('Error in signIn:', error);
       return { error };

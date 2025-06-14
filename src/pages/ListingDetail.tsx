@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Helmet } from 'react-helmet-async';
-import { createSlug, formatCurrency, formatDate, decodeListingId } from '@/lib/formatters';
+import { createSlug, formatCurrency, formatDate } from '@/lib/formatters';
 import ImageGallery from '@/components/public/ImageGallery';
-import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send, Share2, Copy, Check } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send, Share2, Copy, Check, FileText, Home, DollarSign, Facebook, Twitter, Linkedin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createListingSlug } from '@/components/public/ListingCard';
 import { Listing, Agent } from '@/types';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const ListingDetail = () => {
   const { agentSlug, listingSlug } = useParams();
@@ -25,53 +27,89 @@ const ListingDetail = () => {
       try {
         setLoading(true);
         setError(null);
+        console.log(`Fetching listing details for agentSlug: ${agentSlug}, listingSlug: ${listingSlug}`);
 
-        // Get all listings for this agent in a single query
+        // Get listings for this agent, including user_id
         const { data: listings, error: listingsError } = await supabase
           .from('listings')
-          .select(`
-            *,
-            agent:profiles!listings_user_id_fkey (
-              id,
-              first_name,
-              last_name,
-              career,
-              phone_number,
-              avatar_url,
-              slug,
-              status
-            )
-          `)
-          .eq('agent.slug', agentSlug)
-          .eq('agent.status', 'approved');
+          .select(`*`)
+          .neq('status', 'hidden'); // Only fetch active listings
 
-        if (listingsError) throw new Error('Error fetching listings');
-        if (!listings || listings.length === 0) throw new Error('No listings found');
+        if (listingsError) {
+          console.error('Supabase error fetching listings:', listingsError);
+          throw new Error('Error fetching listings');
+        }
+        if (!listings || listings.length === 0) {
+          console.warn('No listings found.', { listings });
+          throw new Error('No listings found');
+        }
+        console.log(`Successfully fetched ${listings.length} total listings.`);
+        // console.log('Fetched listings data (all):', listings); // Too verbose to log all listings
 
-        // Find the listing with matching slug
-        const matchingListing = listings.find(
-          listing => createListingSlug(listing.title) === listingSlug
+        // Find the agent by slug first
+        const { data: agentData, error: agentError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, career, phone_number, avatar_url, slug, status')
+          .eq('slug', agentSlug)
+          .eq('status', 'active')
+          .maybeSingle();
+        
+        if (agentError) {
+          console.error('Supabase error fetching agent by slug:', agentError);
+          throw new Error('Error fetching agent profile');
+        }
+        if (!agentData) {
+          console.warn(`Agent with slug ${agentSlug} not found or not approved.`);
+          throw new Error('Agent not found');
+        }
+        console.log('Agent found:', agentData);
+
+        // Filter listings by the found agent's ID
+        const agentListings = listings.filter(l => l.user_id === agentData.id);
+        if (agentListings.length === 0) {
+          console.warn(`No listings found for agent ID ${agentData.id}.`);
+          throw new Error('No listings found for this agent');
+        }
+        console.log(`Found ${agentListings.length} listings for agent ${agentData.id}.`);
+
+        // Find the listing with matching slug from the agent's listings
+        const matchingListing = agentListings.find(
+          listing => {
+            const generatedSlug = createListingSlug(listing.title);
+            console.log(`Comparing fetched listing title: "${listing.title}" (generated slug: "${generatedSlug}") with URL slug: "${listingSlug}"`);
+            return generatedSlug === listingSlug;
+          }
         );
 
         if (!matchingListing) {
+          console.warn(`No matching listing found for listingSlug: ${listingSlug} among agent's listings.`);
           throw new Error('Listing not found');
         }
 
-        // Extract agent data from the joined query
-        const agentData = matchingListing.agent;
-        delete matchingListing.agent; // Remove agent data from listing object
-
         setListing(matchingListing);
         setAgent(agentData);
+        console.log('Setting listing:', matchingListing);
+        console.log('Setting agent:', agentData);
 
-        // Handle agent slug verification and redirects
-        if (agentData.slug && agentData.slug !== agentSlug) {
-          navigate(`/${agentData.slug}/listing/${createListingSlug(matchingListing.title)}`, { replace: true });
-          return;
-        }
+        // Handle agent slug verification and redirects (should be handled by initial agent fetch now)
+        // if (agentData.slug && agentData.slug !== agentSlug) {
+        //   console.warn(`Agent slug mismatch. Redirecting from ${agentSlug} to ${agentData.slug}`);
+        //   navigate(`/${agentData.slug}/listing/${createListingSlug(matchingListing.title)}`, { replace: true });
+        //   return;
+        // }
+
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        navigate(`/${agentSlug}`, { replace: true });
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+        console.error('Caught error in fetchListing:', err);
+        setError(errorMessage);
+        // Only navigate if an agentSlug exists to avoid infinite redirects on root
+        if (agentSlug) {
+          console.log(`Navigating back to agent profile due to error: ${errorMessage}`);
+          navigate(`/${agentSlug}`, { replace: true });
+        } else {
+          console.log('Navigating to /not-found due to error and no agentSlug.');
+          navigate('/not-found', { replace: true });
+        }
       } finally {
         setLoading(false);
       }
@@ -79,6 +117,11 @@ const ListingDetail = () => {
 
     if (agentSlug && listingSlug) {
       fetchListing();
+    } else {
+      console.warn('Missing agentSlug or listingSlug. Skipping fetchListing.', { agentSlug, listingSlug });
+      setLoading(false);
+      setError('Invalid URL for listing details.');
+      navigate('/not-found', { replace: true });
     }
   }, [agentSlug, listingSlug, navigate]);
 
@@ -109,6 +152,36 @@ const ListingDetail = () => {
       
       document.body.removeChild(textarea);
     }
+  };
+
+  const shareToFacebook = () => {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const shareToTwitter = () => {
+    const url = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent(`Check out this listing: ${listing?.title || ''}`);
+    window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const shareToWhatsApp = () => {
+    const url = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent(`Check out this listing: ${listing?.title || ''}\n${window.location.href}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const shareToLinkedIn = () => {
+    const url = encodeURIComponent(window.location.href);
+    const title = encodeURIComponent(listing?.title || 'Check out this property');
+    const summary = encodeURIComponent(listing?.description || '');
+    window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${url}&title=${title}&summary=${summary}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const shareToTelegram = () => {
+    const url = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent(`Check out this listing: ${listing?.title || ''}`);
+    window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank', 'noopener,noreferrer');
   };
 
   if (loading) {
@@ -217,29 +290,48 @@ const ListingDetail = () => {
         
         <div className="container mx-auto px-4 py-8 relative z-10">
           {/* Back Button */}
-          <button
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
             onClick={() => navigate(-1)}
             className="inline-flex items-center text-[var(--portal-text-secondary)] hover:text-gold-500 mb-6 transition-colors group"
           >
             <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
             Back to Listings
-          </button>
+          </motion.button>
 
-          {/* Title Section */}
-          <div className="mb-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 md:mb-0">{listing.title}</h1>
-              
-              <div className="flex items-center space-x-2">
+          {/* Title and Share Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
+            className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+          >
+            <h1 className="text-3xl md:text-5xl font-extrabold text-[var(--portal-text)] leading-tight">
+              {listing.title}
+            </h1>
+            
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                >
+              className="flex-shrink-0"
+            >
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="bg-[var(--portal-card-bg)] text-gold-500 border-gold-500 hover:bg-gold-500 hover:text-black transition-all duration-300 flex items-center justify-center gap-2 px-6 py-3"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share Listing
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 bg-[var(--portal-card-bg)] border-[var(--portal-border)] p-2 rounded-lg shadow-lg">
                   <Button
                     onClick={handleCopyLink}
-                    variant="outline"
-                    size="sm"
-                    className="bg-[var(--portal-card-bg)] border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] transition-all flex items-center justify-center gap-2"
+                    variant="ghost"
+                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
                   >
                     <AnimatePresence mode="wait">
                       {copied ? (
@@ -248,7 +340,7 @@ const ListingDetail = () => {
                           initial={{ scale: 0.8, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.8, opacity: 0 }}
-                          className="text-green-500"
+                          className="text-green-500 mr-2"
                         >
                           <Check className="h-4 w-4" />
                         </motion.div>
@@ -258,6 +350,7 @@ const ListingDetail = () => {
                           initial={{ scale: 0.8, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.8, opacity: 0 }}
+                          className="mr-2"
                         >
                           <Copy className="h-4 w-4" />
                         </motion.div>
@@ -265,133 +358,98 @@ const ListingDetail = () => {
                     </AnimatePresence>
                     {copied ? 'Copied!' : 'Copy Link'}
                   </Button>
-                </motion.div>
-                
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button
-                    onClick={() => {
-                      if (navigator.share) {
-                        navigator.share({
-                          title: listing.title,
-                          text: listing.description,
-                          url: window.location.href,
-                        }).catch(err => {
-                          console.error('Error sharing:', err);
-                          handleCopyLink();
-                        });
-                      } else {
-                        handleCopyLink();
-                      }
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="bg-[var(--portal-card-bg)] border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] transition-all"
+                  <Button 
+                    onClick={shareToFacebook}
+                    variant="ghost"
+                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
                   >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share
+                    <Facebook className="h-4 w-4 mr-2" />
+                    Facebook
                   </Button>
+                  <Button 
+                    onClick={shareToTwitter}
+                    variant="ghost"
+                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                  >
+                    <Twitter className="h-4 w-4 mr-2" />
+                    Twitter
+                  </Button>
+                  <Button 
+                    onClick={shareToWhatsApp}
+                    variant="ghost"
+                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    WhatsApp
+                  </Button>
+                  <Button 
+                    onClick={shareToLinkedIn}
+                    variant="ghost"
+                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                  >
+                    <Linkedin className="h-4 w-4 mr-2" />
+                    LinkedIn
+                  </Button>
+                  <Button
+                    onClick={shareToTelegram}
+                    variant="ghost"
+                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Telegram
+                  </Button>
+                </PopoverContent>
+              </Popover>
+            </motion.div>
                 </motion.div>
-              </div>
-            </div>
-            
-            {/* Categories Section */}
-            <div className="mb-6">
-              {/* Main Category - City */}
-              <div className="mb-4">
-                <h2 className="text-3xl font-bold text-gold-500 mb-2">
-                  {listing.city || 'Location Not Specified'}
-                </h2>
-                <div className="h-1 w-24 bg-gold-500/20 rounded-full"></div>
-              </div>
-              
-              {/* Sub Categories */}
-              <div className="flex flex-wrap gap-3">
-                {/* Progress Status Category */}
-                <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg px-4 py-2">
-                  <span className="text-sm font-medium text-[var(--portal-text-secondary)]">Progress:</span>
-                  <span className="ml-2 font-semibold text-[var(--portal-text)]">
-                    {listing.progress_status ? (
-                      listing.progress_status === 'excavation' ? 'Excavation (ቁፋሮ)' :
-                      listing.progress_status === 'on_progress' ? 'On Progress' :
-                      listing.progress_status === 'semi_finished' ? 'Semi-finished' :
-                      'Fully Finished'
-                    ) : 'Not specified'}
-                  </span>
-                </div>
-                
-                {/* Bank Option Category */}
-                <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg px-4 py-2">
-                  <span className="text-sm font-medium text-[var(--portal-text-secondary)]">Bank Option:</span>
-                  <span className="ml-2 font-semibold text-[var(--portal-text)]">
-                    {listing.bank_option ? 'Available' : 'Not Available'}
-                  </span>
-                </div>
-                
-                {/* Down Payment Category */}
-                {listing.down_payment_percent && (
-                  <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg px-4 py-2">
-                    <span className="text-sm font-medium text-[var(--portal-text-secondary)]">Down Payment:</span>
-                    <span className="ml-2 font-semibold text-[var(--portal-text)]">
-                      {listing.down_payment_percent}%
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base text-[var(--portal-text-secondary)]">
-              <div className="flex items-center bg-[var(--portal-card-bg)] p-2 rounded-lg">
-                <MapPin className="h-4 w-4 mr-1 text-gold-500" />
-                <span>{listing.location || 'Location not specified'}</span>
-                </div>
-              <span className="hidden sm:inline">•</span>
-              <div className="flex items-center bg-[var(--portal-card-bg)] p-2 rounded-lg">
-                <Banknote className="h-4 w-4 mr-1 text-gold-500" />
-                <span>{formatCurrency(listing.price)}</span>
-              </div>
-              <span className="hidden sm:inline">•</span>
-              <div className="flex items-center bg-[var(--portal-card-bg)] p-2 rounded-lg">
-                <Calendar className="h-4 w-4 mr-1 text-gold-500" />
-                <span>Listed {formatDate(listing.created_at)}</span>
-              </div>
-            </div>
-          </div>
           
           {/* Image Gallery */}
-          <div className="mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className="mb-10 rounded-xl overflow-hidden shadow-xl"
+          >
           <ImageGallery 
             mainImage={listing.main_image_url || ''} 
               additionalImages={listing.additional_image_urls || []}
           />
-          </div>
+          </motion.div>
           
-          {/* Listing Details */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <div className="lg:col-span-2">
-              {/* Description */}
-              <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6 mb-6">
-                <h2 className="text-xl font-bold mb-4 text-gold-500 flex items-center">
-                  <div className="w-1 h-5 bg-gold-500 rounded-full mr-2"></div>
+          {/* Property Details Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.4 }}
+              className="lg:col-span-2"
+            >
+              {/* Description Card */}
+              <Card className="bg-[var(--portal-card-bg)] border-[var(--portal-border)] rounded-xl shadow-lg mb-8">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold text-gold-500 flex items-center">
+                    <FileText className="h-6 w-6 mr-3" />
                   Description
-                </h2>
-                <div className="prose prose-gold dark:prose-invert max-w-none">
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="prose prose-gold dark:prose-invert max-w-none">
                 {listing.description ? (
-                    <p className="whitespace-pre-wrap leading-relaxed">{listing.description}</p>
-                ) : (
-                  <p className="text-[var(--portal-text-secondary)]">No description provided.</p>
-                )}
-              </div>
-            </div>
-            
-              {/* Property Details */}
-              <div className="bg-[var(--portal-card-bg)] border border-[var(--portal-border)] rounded-lg p-6">
-                <h2 className="text-xl font-bold mb-4 text-gold-500 flex items-center">
-                  <div className="w-1 h-5 bg-gold-500 rounded-full mr-2"></div>
-                  Property Details
-                </h2>
+                      <p className="whitespace-pre-wrap leading-relaxed text-[var(--portal-text-secondary)] text-lg">{listing.description}</p>
+                  ) : (
+                    <p className="text-[var(--portal-text-secondary)] italic">No description provided for this listing.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Key Details - Expanded */}
+              <Card className="bg-[var(--portal-card-bg)] border-[var(--portal-border)] rounded-xl shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold text-gold-500 flex items-center">
+                    <MapPin className="h-6 w-6 mr-3" />
+                    Key Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="prose prose-gold dark:prose-invert max-w-none">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="font-semibold mb-2 text-gold-500">Location</div>
                   <p className="text-[var(--portal-text-secondary)] bg-[var(--portal-bg-hover)]/50 p-3 rounded-lg">
@@ -406,8 +464,9 @@ const ListingDetail = () => {
                       {formatDate(listing.created_at)}
                     </p>
                 </div>
-              </div>
-            </div>
+                </CardContent>
+              </Card>
+            </motion.div>
 
             {/* Contact Card */}
             <div className="lg:col-span-1">
@@ -426,7 +485,7 @@ const ListingDetail = () => {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gold-500/20 text-gold-500 font-bold text-xl">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gold-400 to-gold-600 text-black text-3xl font-bold">
                         {agent.first_name?.[0]}{agent.last_name?.[0]}
                       </div>
                     )}
@@ -440,62 +499,40 @@ const ListingDetail = () => {
                 </div>
 
                   <div className="space-y-3">
-                    {contactOptions.map((option, index) => (
-                        <a
-                          key={option.type}
-                          href={option.href}
-                          target={option.type !== 'phone' ? '_blank' : undefined}
+                  {agent.phone_number && (
+                    <a
+                      href={`tel:${agent.phone_number}`}
+                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors font-semibold shadow-md"
+                    >
+                      <Phone className="h-5 w-5" />
+                      Call {agent.first_name}
+                    </a>
+                  )}
+                  {agent.whatsapp_link && (
+                    <a
+                      href={agent.whatsapp_link}
+                      target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex items-center justify-center py-3 px-4 rounded-lg w-full font-medium transition-all ${
-                        option.type === 'phone'
-                          ? 'bg-gold-500 text-black hover:bg-gold-600'
-                          : 'bg-[var(--portal-bg-hover)] text-[var(--portal-text)] hover:bg-[var(--portal-border)]'
-                      }`}
-                        >
-                          {option.icon}
-                          {option.label}
-                        </a>
-                    ))}
-                  
-                  <Link to={`/${agent.slug}`}>
-                    <div className="flex items-center justify-center py-3 px-4 rounded-lg w-full bg-[var(--portal-bg-hover)]/50 text-[var(--portal-text-secondary)] hover:bg-[var(--portal-bg-hover)] transition-all mt-4 text-sm">
-                      <ExternalLink className="h-3.5 w-3.5 mr-2" />
-                      View All Listings from this Agent
-                </div>
-                </Link>
+                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                      WhatsApp
+                    </a>
+                  )}
+                  {agent.telegram_link && (
+                    <a
+                      href={agent.telegram_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
+                    >
+                      <Send className="h-5 w-5" />
+                      Telegram
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Bottom Navigation */}
-          <div className="flex justify-between mb-12">
-            <Button
-              variant="outline"
-              onClick={() => navigate(-1)}
-              className="border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] transition-all"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Listings
-            </Button>
-            
-            <Button
-              onClick={handleCopyLink}
-              variant="outline"
-              className="border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] transition-all"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4 mr-2 text-green-500" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share Listing
-                </>
-              )}
-            </Button>
           </div>
         </div>
       </div>

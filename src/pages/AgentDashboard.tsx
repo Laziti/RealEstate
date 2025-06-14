@@ -8,11 +8,12 @@ import ListingTable from '@/components/agent/ListingTable';
 import CreateListingForm from '@/components/agent/CreateListingForm';
 import EditListingForm from '@/components/agent/EditListingForm';
 import AccountInfo from '@/components/agent/AccountInfo';
-import { Loader2, Plus, X, Building, Copy, Share2, Check, Rocket, Globe } from 'lucide-react';
+import { Loader2, Plus, X, Building, Copy, Share2, Check, Rocket, Globe, Facebook, Twitter, Linkedin, MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import '@/styles/portal-theme.css';
 import { createSlug } from '@/lib/formatters';
 import UpgradeSidebar from '@/components/agent/UpgradeSidebar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const AgentDashboard = () => {
   const { user, userStatus, signOut, refreshSession } = useAuth();
@@ -26,11 +27,9 @@ const AgentDashboard = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const linkRef = useRef<HTMLInputElement>(null);
-  const [showWelcomeCard, setShowWelcomeCard] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [headerLinkCopied, setHeaderLinkCopied] = useState(false);
   const lastRefreshTime = useRef(0);
   const refreshCooldown = 10000; // 10 seconds cooldown between refreshes
+  const [isSharePopoverOpen, setIsSharePopoverOpen] = useState(false);
 
   const fetchListings = async () => {
     if (!user) return;
@@ -148,8 +147,8 @@ const AgentDashboard = () => {
   const copyProfileLink = () => {
     const link = getPublicProfileUrl();
     copyToClipboard(link, () => {
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     });
   };
   
@@ -157,14 +156,43 @@ const AgentDashboard = () => {
   const copyProfileLinkFromHeader = () => {
     const link = getPublicProfileUrl();
     copyToClipboard(link, () => {
-      setHeaderLinkCopied(true);
-      setTimeout(() => setHeaderLinkCopied(false), 2000);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleShareToSocial = (platform: string) => {
+    const profileUrl = getPublicProfileUrl();
+    const shareText = `Check out my real estate agent profile: ${profileUrl}`;
+    let url = '';
+
+    switch (platform) {
+      case 'facebook':
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`;
+        break;
+      case 'twitter':
+        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+        break;
+      case 'linkedin':
+        url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(profileUrl)}&title=${encodeURIComponent('Real Estate Agent Profile')}&summary=${encodeURIComponent(shareText)}`;
+        break;
+      case 'whatsapp':
+        url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        break;
+      case 'telegram':
+        url = `https://t.me/share/url?url=${encodeURIComponent(profileUrl)}&text=${encodeURIComponent(shareText)}`;
+        break;
+      default:
+        return;
+    }
+
+    window.open(url, '_blank');
+    setIsSharePopoverOpen(false);
   };
 
   useEffect(() => {
     // Ensure the user is approved
-    if (userStatus && userStatus !== 'approved') {
+    if (userStatus && userStatus !== 'approved' && userStatus !== 'active') {
       navigate('/pending');
       return;
     }
@@ -173,7 +201,6 @@ const AgentDashboard = () => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'W') {
         e.preventDefault();
-        resetWelcomeCard();
       }
     };
 
@@ -190,24 +217,14 @@ const AgentDashboard = () => {
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (profileError) throw profileError;
-        setProfileData(profileData);
-
-        // Check if user is a first-time visitor
-        const hasSeen = hasUserSeenWelcome();
-        
-        if (!hasSeen) {
-          // This is a first-time user, show welcome card
-          // Set a small delay to ensure profile data is loaded
-          setTimeout(() => {
-            setShowWelcomeCard(true);
-          }, 300);
-          
-          // Save that user has seen welcome
-          markUserAsSeenWelcome();
+        if (!profileData) {
+          setProfileData(null);
+          return;
         }
+        setProfileData(profileData);
 
         // Only fetch listings if we haven't recently fetched them
         const now = Date.now();
@@ -245,34 +262,6 @@ const AgentDashboard = () => {
     fetchListings();
   };
 
-  // Development-only function to reset welcome state and show card
-  const resetWelcomeCard = () => {
-    if (user) {
-      // Clear the has seen welcome flag for this user
-      localStorage.removeItem(`hasSeenWelcome-${user.id}`);
-      // Force show the welcome card
-      setShowWelcomeCard(true);
-      console.log('[Dashboard] Welcome card has been reset and forced to show');
-    }
-  };
-
-  // Helper function to check if user has seen welcome
-  const hasUserSeenWelcome = () => {
-    if (!user) return true; // Default to true if no user
-    return localStorage.getItem(`hasSeenWelcome-${user.id}`) === 'true';
-  };
-
-  // Helper function to mark user as having seen welcome
-  const markUserAsSeenWelcome = () => {
-    if (!user) return;
-    localStorage.setItem(`hasSeenWelcome-${user.id}`, 'true');
-  };
-
-  // Track welcome card visibility changes
-  useEffect(() => {
-    console.log('[Dashboard] Welcome card visibility changed:', { showWelcomeCard });
-  }, [showWelcomeCard]);
-
   // Empty listings state
   const EmptyListingsState = () => (
     <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -293,144 +282,6 @@ const AgentDashboard = () => {
     </div>
   );
 
-  // Welcome popup component
-  const WelcomeCard = () => {
-    // Log for debugging whenever welcome card component renders
-    console.log('[WelcomeCard] Rendering with state:', {
-      showWelcomeCard,
-      hasProfileData: !!profileData
-    });
-    
-    if (!showWelcomeCard || !profileData) {
-      return null;
-    }
-    
-    // Function to handle closing the welcome card
-    const handleClose = () => {
-      console.log('[WelcomeCard] Closing welcome card');
-      setShowWelcomeCard(false);
-      // Ensure the user is marked as having seen the welcome
-      markUserAsSeenWelcome();
-    };
-    
-    return (
-      <AnimatePresence mode="wait">
-        <motion.div
-          key="welcome-modal"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-y-auto"
-          onClick={(e) => {
-            // Close when clicking the backdrop, but not when clicking the modal itself
-            if (e.target === e.currentTarget) {
-              handleClose();
-            }
-          }}
-        >
-          <div className="min-h-screen py-6 px-3 flex items-center justify-center">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[var(--portal-card-bg)] rounded-xl shadow-xl border border-[var(--portal-border)] p-5 md:p-6 max-w-xl w-full mx-auto relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="absolute top-3 right-3 md:top-4 md:right-4">
-                <button
-                  onClick={handleClose}
-                  className="text-[var(--portal-text-secondary)] hover:text-[var(--portal-text)] transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              
-              <div className="flex justify-center mb-4 md:mb-5 mt-2">
-                <div className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-gradient-to-br from-amber-200 to-amber-400 flex items-center justify-center">
-                  <Rocket className="h-7 w-7 md:h-8 md:w-8 text-amber-800" />
-                </div>
-              </div>
-              
-              <h2 className="text-xl md:text-2xl font-bold text-center text-[var(--portal-text)] mb-1 md:mb-2">
-                Welcome to Your Dashboard!
-              </h2>
-              <p className="text-[var(--portal-text-secondary)] text-center text-sm md:text-base mb-5 md:mb-7 px-1">
-                Your account has been approved. Here's how to get started:
-              </p>
-              
-              <div className="flex flex-col lg:flex-row gap-4 md:gap-6 max-h-[60vh] lg:max-h-none overflow-y-auto lg:overflow-visible pb-1">
-                {/* Share profile card */}
-                <div className="flex-1 rounded-lg border border-[var(--portal-border)] p-4 bg-[var(--portal-bg)]/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Globe className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
-                    </div>
-                    <h3 className="font-semibold text-[var(--portal-text)]">Your Public Profile</h3>
-                  </div>
-                  <p className="text-xs md:text-sm text-[var(--portal-text-secondary)] mb-3">
-                    Share this link with clients to showcase your property listings:
-                  </p>
-                  
-                  <div className="flex items-center gap-2 mb-1">
-                    <input
-                      type="text"
-                      value={getPublicProfileUrl()}
-                      readOnly
-                      onClick={(e) => e.currentTarget.select()}
-                      className="flex-1 px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm rounded bg-[var(--portal-bg-hover)] text-[var(--portal-text)] border border-[var(--portal-border)] cursor-text truncate select-all"
-                    />
-                    <Button
-                      onClick={copyProfileLink}
-                      size="sm"
-                      className="bg-blue-500 hover:bg-blue-600 text-white flex gap-1 items-center text-xs h-8 px-2.5 whitespace-nowrap flex-shrink-0"
-                    >
-                      {linkCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                      {linkCopied ? 'Copied!' : 'Copy'}
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Create listing card */}
-                <div className="flex-1 rounded-lg border border-[var(--portal-border)] p-4 bg-[var(--portal-bg)]/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-amber-100 flex items-center justify-center">
-                      <Building className="h-4 w-4 md:h-5 md:w-5 text-amber-600" />
-                    </div>
-                    <h3 className="font-semibold text-[var(--portal-text)]">Create Your First Listing</h3>
-                  </div>
-                  <p className="text-xs md:text-sm text-[var(--portal-text-secondary)] mb-3">
-                    Get started by creating your first property listing to showcase to potential clients:
-                  </p>
-                  
-                  <Button 
-                    onClick={() => {
-                      handleClose();
-                      setActiveTab('create');
-                    }}
-                    className="w-full bg-gold-500 hover:bg-gold-600 text-black flex items-center justify-center gap-1.5 h-8 md:h-9 text-xs md:text-sm"
-                  >
-                    <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                    Create New Listing
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="mt-5 md:mt-6 flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={handleClose}
-                  className="border-[var(--portal-border)] text-[var(--portal-text-secondary)] text-xs md:text-sm h-8 md:h-9"
-                >
-                  Explore Dashboard First
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        </motion.div>
-      </AnimatePresence>
-    );
-  };
-
   return (
     <div className="flex h-screen bg-[var(--portal-bg)]">
       <AgentSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -449,23 +300,64 @@ const AgentDashboard = () => {
             </div>
             
           {/* Share Profile Button */}
-              <Button 
-                variant="outline" 
-            className="border-[var(--portal-border)] text-[var(--portal-text-secondary)] hover:text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                onClick={copyProfileLinkFromHeader}
-              >
-            {headerLinkCopied ? (
-              <>
-                <Check className="h-4 w-4 mr-2" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Share2 className="h-4 w-4 mr-2" />
-                Share My Profile
-              </>
-            )}
-          </Button>
+              <Popover open={isSharePopoverOpen} onOpenChange={setIsSharePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-[var(--portal-border)] text-[var(--portal-text-secondary)] hover:text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share My Profile
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2 bg-[var(--portal-card-bg)] border-[var(--portal-border)] shadow-lg rounded-md">
+                  <div className="grid gap-2">
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                      onClick={copyProfileLinkFromHeader}
+                    >
+                      {copied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
+                      {copied ? 'Link Copied!' : 'Copy Link'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                      onClick={() => handleShareToSocial('whatsapp')}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                      onClick={() => handleShareToSocial('telegram')}
+                    >
+                      <Send className="h-4 w-4 mr-2 text-blue-400" /> Telegram
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                      onClick={() => handleShareToSocial('facebook')}
+                    >
+                      <Facebook className="h-4 w-4 mr-2 text-blue-600" /> Facebook
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                      onClick={() => handleShareToSocial('twitter')}
+                    >
+                      <Twitter className="h-4 w-4 mr-2 text-blue-400" /> Twitter (X)
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                      onClick={() => handleShareToSocial('linkedin')}
+                    >
+                      <Linkedin className="h-4 w-4 mr-2 text-blue-700" /> LinkedIn
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
               </div>
               
         {/* Main Content Area */}
@@ -476,11 +368,6 @@ const AgentDashboard = () => {
                 </div>
           ) : (
             <>
-              {/* Welcome Card */}
-              <AnimatePresence>
-                {showWelcomeCard && <WelcomeCard />}
-              </AnimatePresence>
-
               {/* Tab Content */}
               {activeTab === 'listings' && (
                 listings.length > 0 ? (

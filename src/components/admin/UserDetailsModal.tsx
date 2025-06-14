@@ -97,14 +97,16 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
     }
 
     try {
-      const { data, error } = await supabase
-        .rpc('get_auth_users_data');
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
 
       if (error) throw error;
 
-      const userInfo = data?.find((u: any) => u.id === user.id);
-      if (userInfo) {
-        setUserEmail(userInfo.email);
+      if (profile) {
+        setUserEmail(profile.email);
       }
     } catch (error) {
       console.error('Error fetching user email:', error);

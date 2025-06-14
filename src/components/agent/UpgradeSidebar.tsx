@@ -46,6 +46,13 @@ const pricingPlans: PricingPlan[] = [
   },
 ];
 
+const PLAN_ID_MAP: Record<string, string> = {
+  'monthly-basic': 'basic_monthly',
+  'monthly-pro': 'pro_monthly',
+  'semi-annual': 'pro_semi_annual',
+  'annual': 'pro_annual',
+};
+
 const UpgradeSidebar = () => {
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
@@ -93,7 +100,7 @@ const UpgradeSidebar = () => {
         .from('subscription_requests')
         .insert([{
           user_id: user.id,
-          plan_id: selectedPlan.id,
+          plan_id: PLAN_ID_MAP[selectedPlan.id],
           receipt_path: fileName,
           status: 'pending',
           amount: selectedPlan.price,
@@ -114,6 +121,39 @@ const UpgradeSidebar = () => {
       setShowUploadDialog(false);
       setShowSuccessDialog(true);
       setReceipt(null);
+
+      // Update user profile
+      // Set end date to one month in the future for monthly plans
+      const newEndDate = new Date();
+      if (selectedPlan.duration.toLowerCase().includes('month')) {
+        newEndDate.setMonth(newEndDate.getMonth() + 1);
+      } else if (selectedPlan.duration.toLowerCase().includes('year')) {
+        newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+      } else if (selectedPlan.duration.toLowerCase().includes('6')) {
+        newEndDate.setMonth(newEndDate.getMonth() + 6);
+      }
+      const details = {
+        subscription_status: 'pro',
+        subscription_end_date: newEndDate.toISOString(),
+        subscription_details: {
+          plan_id: PLAN_ID_MAP[selectedPlan.id],
+          price: selectedPlan.price,
+          duration: selectedPlan.duration,
+          listings_per_month: selectedPlan.listingsPerMonth,
+          end_date: newEndDate.toISOString(),
+          start_date: new Date().toISOString()
+        }
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ subscription_status: 'pro', subscription_end_date: newEndDate, subscription_details: details })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating user profile:', error);
+        setError('Failed to update user profile. Please try again.');
+      }
     } catch (err) {
       console.error('Error submitting upgrade request:', err);
       setError('Failed to submit upgrade request. Please try again.');

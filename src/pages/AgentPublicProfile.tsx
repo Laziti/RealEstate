@@ -8,6 +8,8 @@ import { Loader2, Building, ChevronRight, Home, ArrowLeft, Phone } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createSlug } from '@/lib/formatters';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AgentProfile {
   id: string;
@@ -17,6 +19,8 @@ interface AgentProfile {
   phone_number?: string;
   avatar_url?: string;
   slug?: string;
+  whatsapp_link?: string;
+  telegram_link?: string;
 }
 
 interface Listing {
@@ -47,91 +51,121 @@ const AgentPublicProfile = () => {
   );
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
+  // Fetch agent profile by slug
   useEffect(() => {
-    const fetchAgentAndListings = async () => {
+    const fetchAgent = async () => {
       setLoading(true);
       try {
-        // Find the agent with the matching slug directly
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, career, phone_number, avatar_url, status, slug')
-          .eq('status', 'approved')
-          .eq('slug', agentSlug)
-          .single();
-          
-        console.log('Fetched agent profile data:', profileData);
-        console.log('Profile fetch error:', profileError);
+        let currentAgent: AgentProfile | null = null;
 
-        if (profileError) {
+        // Attempt to fetch by slug first
+        const { data: profileBySlug, error: slugError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, career, phone_number, avatar_url, slug, status, whatsapp_link, telegram_link')
+          .eq('slug', agentSlug)
+          .maybeSingle();
+
+        if (slugError) {
+          console.error('Error fetching agent by slug:', slugError);
+        }
+
+        if (profileBySlug) {
+          currentAgent = profileBySlug;
+          console.log('Agent found by slug:', currentAgent);
+        } else {
           // If no match by slug field, try the legacy method using name
+          console.warn(`No agent found with slug: ${agentSlug}. Attempting fallback by name.`);
           const { data: profiles, error: backupError } = await supabase
             .from('profiles')
-            .select('id, first_name, last_name, career, phone_number, avatar_url, status')
-            .eq('status', 'approved');
-            
-        console.log('Fetched profiles for backup search:', profiles);
-        console.log('Backup profile fetch error:', backupError);
+            .select('id, first_name, last_name, career, phone_number, avatar_url, status, slug, whatsapp_link, telegram_link')
+            .eq('status', 'approved'); // Only search approved agents
 
-          if (backupError) throw backupError;
-          
-          if (!profiles || profiles.length === 0) {
-            navigate('/not-found');
-            return;
+          if (backupError) {
+            console.error('Error fetching profiles for slug fallback:', backupError);
           }
-          
-          // Find the agent whose name matches the slug
-          const matchedAgent = profiles.find(profile => {
-            const fullName = `${profile.first_name} ${profile.last_name}`;
-            return createSlug(fullName) === agentSlug;
-          });
-          
-          if (!matchedAgent) {
-            navigate('/not-found');
-            return;
-          }
-          
-          setAgent(matchedAgent);
-          
-          // Update the profile with the slug for future use
-          await supabase
-            .from('profiles')
-            .update({ slug: agentSlug })
-            .eq('id', matchedAgent.id);
-        } else {
-          setAgent(profileData);
-        }
-        
-        // Fetch the agent's listings
-        const { data: listingsData, error: listingsError } = await supabase
-          .from('listings')
-          .select('id, title, price, location, city, main_image_url, description, created_at, progress_status, bank_option')
-          .eq('user_id', agent ? agent.id : profileData.id)
-          .neq('status', 'hidden')
-          .order('created_at', { ascending: false });
-          
-        console.log('Fetched listings data:', listingsData);
-        console.log('Listings fetch error:', listingsError);
 
-        if (listingsError) {
-          console.error('Error fetching listings:', listingsError);
-          setListings([]);
-        } else {
-          setListings(listingsData as unknown as Listing[]);
+          if (profiles && profiles.length > 0) {
+            const matchedAgent = profiles.find(profile => {
+              const fullName = `${profile.first_name} ${profile.last_name}`;
+              return createSlug(fullName) === agentSlug;
+            });
+
+            if (matchedAgent) {
+              currentAgent = matchedAgent;
+              console.log('Agent found by name fallback:', currentAgent);
+              // Update the profile with the slug for future use if it doesn't have one
+              if (!matchedAgent.slug) {
+                await supabase
+                  .from('profiles')
+                  .update({ slug: agentSlug })
+                  .eq('id', matchedAgent.id);
+                console.log(`Updated agent ${matchedAgent.id} with slug: ${agentSlug}`);
+              }
+            } else {
+              console.warn('No agent found by name fallback.');
+            }
+          }
         }
+
+        if (!currentAgent) {
+          console.warn('No agent found, navigating to /not-found.');
+          navigate('/not-found');
+          return;
+        }
+
+        setAgent(currentAgent);
+
       } catch (error) {
         console.error('Error fetching agent profile:', error);
+        setError('Error fetching agent profile');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAgentAndListings();
-  }, [agentSlug, navigate, agent?.id]);
+    fetchAgent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentSlug, navigate]);
+
+  // Fetch listings when agent is set
+  useEffect(() => {
+    const fetchListings = async () => {
+      if (!agent) {
+        console.log('Agent not set, skipping listings fetch.');
+        return;
+      }
+      setLoading(true);
+      console.log(`Fetching listings for agent ID: ${agent.id}`);
+      try {
+        const { data: listingsData, error: listingsError } = await supabase
+          .from('listings')
+          .select('id, title, price, location, city, main_image_url, description, created_at, progress_status, bank_option')
+          .eq('user_id', agent.id)
+          .neq('status', 'hidden')
+          .order('created_at', { ascending: false });
+
+        if (listingsError) {
+          console.error('Error fetching listings:', listingsError);
+          setListings([]);
+        } else {
+          console.log(`Fetched ${listingsData?.length || 0} listings.`);
+          setListings(listingsData as unknown as Listing[]);
+        }
+      } catch (error) {
+        console.error('Error fetching listings:', error);
+        setListings([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchListings();
+  }, [agent]);
 
   useEffect(() => {
     if (listings.length > 0) {
       const cities = Array.from(new Set(listings.map(listing => listing.city).filter(Boolean)));
       setAvailableCities(cities as string[]);
+      console.log('Available cities for filtering:', cities);
     }
   }, [listings]);
 
@@ -141,12 +175,21 @@ const AgentPublicProfile = () => {
     if (selectedProgress) params.progress = selectedProgress;
     if (selectedBankOption !== null) params.bank = selectedBankOption.toString();
     setSearchParams(params);
+    console.log('Search params updated:', params);
   }, [selectedCity, selectedProgress, selectedBankOption, setSearchParams]);
 
   const filteredListings = listings.filter(listing => {
+    console.log(`Filtering listing ${listing.id}: City=${listing.city}, Progress=${listing.progress_status}, BankOption=${listing.bank_option}`);
+    console.log(`Selected filters: City=${selectedCity}, Progress=${selectedProgress}, BankOption=${selectedBankOption}`);
+
     if (selectedCity && listing.city !== selectedCity) return false;
     if (selectedProgress && listing.progress_status !== selectedProgress) return false;
-    if (selectedBankOption !== null && listing.bank_option !== selectedBankOption) return false;
+    // Ensure bank_option filter correctly handles boolean values
+    if (selectedBankOption !== null) {
+      if (typeof listing.bank_option === 'boolean' && listing.bank_option !== selectedBankOption) return false;
+      if (typeof listing.bank_option === 'undefined' && selectedBankOption === true) return false; // If listing has no bank_option, don't show if filter is true
+    }
+    
     return true;
   });
 
@@ -154,18 +197,22 @@ const AgentPublicProfile = () => {
     setSelectedCity(null);
     setSelectedProgress(null);
     setSelectedBankOption(null);
+    console.log('Filters reset.');
   };
 
   const handleCityFilter = (city: string) => {
     setSelectedCity(selectedCity === city ? null : city);
+    console.log('City filter toggled:', city);
   };
 
   const handleProgressFilter = (progress: string) => {
     setSelectedProgress(selectedProgress === progress ? null : progress);
+    console.log('Progress filter toggled:', progress);
   };
 
   const handleBankOptionFilter = (hasBank: boolean) => {
     setSelectedBankOption(selectedBankOption === hasBank ? null : hasBank);
+    console.log('Bank option filter toggled:', hasBank);
   };
 
   if (loading) {
@@ -195,99 +242,100 @@ const AgentPublicProfile = () => {
         <meta name="twitter:description" content={pageDescription} />
       </Helmet>
       
-      {/* Decorative elements */}
-      <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-b from-gold-500/5 to-transparent pointer-events-none"></div>
-      <div className="fixed bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-gold-500/10 to-transparent rounded-full blur-3xl -mb-48 -mr-48 pointer-events-none"></div>
+      {/* Static Cover */}
+      <div className="w-full h-48 md:h-64 relative overflow-hidden group">
+        <img 
+          src="/Cover-page.png"
+          alt="Agent Profile Cover" 
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity duration-300 group-hover:bg-black/40">
+          {/* Optional: Add a subtle overlay or text here if desired */}
+        </div>
+      </div>
+
+      {/* Decorative elements - adjust as needed, might be redundant with static cover */}
+      {/* <div className="fixed top-0 left-0 w-full h-64 bg-gradient-to-b from-gold-500/5 to-transparent pointer-events-none"></div> */}
+      {/* <div className="fixed bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-gold-500/10 to-transparent rounded-full blur-3xl -mb-48 -mr-48 pointer-events-none"></div> */}
       
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className="container mx-auto px-4 py-8 relative z-10 -mt-16 md:-mt-24">
         <div className="max-w-7xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mb-6"
-          >
-            <Button 
-              variant="ghost"
-              onClick={() => navigate('/')}
-              className="text-gold-500 hover:text-gold-600 hover:bg-[var(--portal-card-bg)/50] group"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-              Back to Home
-            </Button>
-          </motion.div>
-          
-          {/* Breadcrumb */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.4 }}
-            className="flex items-center text-sm text-[var(--portal-text-secondary)] mb-6"
-          >
-            <Home className="h-3.5 w-3.5" />
-            <ChevronRight className="h-3.5 w-3.5 mx-2" />
-            <span>Agents</span>
-            <ChevronRight className="h-3.5 w-3.5 mx-2" />
-            <span className="text-[var(--portal-text)] font-medium">{agent.first_name} {agent.last_name}</span>
-          </motion.div>
-          
           {/* Agent Profile Header */}
-          <div className="mb-12">
+          <div className="mb-12 relative z-20">
             <AgentProfileHeader 
               firstName={agent.first_name}
               lastName={agent.last_name}
               career={agent.career}
               phoneNumber={agent.phone_number}
               avatarUrl={agent.avatar_url}
+              whatsappLink={agent.whatsapp_link}
+              telegramLink={agent.telegram_link}
             />
           </div>
           
           {/* Categories Section */}
-          <div className="mb-8">
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <h2 className="text-2xl font-bold text-[var(--portal-text)]">Categories</h2>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className="mb-12"
+          >
+            <Card className="bg-[var(--portal-card-bg)] border-[var(--portal-border)]">
+              <CardHeader className="pb-4">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-2xl font-bold text-gold-500">Filter Properties</CardTitle>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={resetFilters}
-                className="text-sm"
+                    className="text-sm text-[var(--portal-text-secondary)] hover:bg-[var(--portal-bg-hover)]"
               >
                 Reset Filters
               </Button>
             </div>
-
-            {/* City Categories */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Cities</h3>
-              <div className="flex flex-wrap gap-2">
-                {availableCities.map((city) => (
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="cities" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 bg-[var(--portal-bg-hover)] mb-6">
+                    <TabsTrigger value="cities" className="data-[state=active]:bg-gold-500 data-[state=active]:text-black transition-all">Cities</TabsTrigger>
+                    <TabsTrigger value="progress" className="data-[state=active]:bg-gold-500 data-[state=active]:text-black transition-all">Progress Status</TabsTrigger>
+                    <TabsTrigger value="bank_option" className="data-[state=active]:bg-gold-500 data-[state=active]:text-black transition-all">Bank Option</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="cities">
+                    <h4 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Select City</h4>
+                    <div className="flex flex-wrap gap-3">
+                      {availableCities.length > 0 ? (
+                        availableCities.map((city) => (
                   <button
                     key={city}
                     onClick={() => handleCityFilter(city)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      selectedCity === city
-                        ? 'bg-gold-500 text-black'
-                        : 'bg-[var(--portal-card-bg)] text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]'
+                            className={`px-5 py-2 rounded-full text-base font-medium transition-all shadow-sm 
+                              ${selectedCity === city
+                                ? 'bg-gold-500 text-black border border-gold-600'
+                                : 'bg-[var(--portal-bg)] text-[var(--portal-text-secondary)] border border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] hover:border-gold-500'
                     }`}
                   >
                     {city}
                   </button>
-                ))}
+                        ))
+                      ) : (
+                        <p className="text-[var(--portal-text-secondary)]">No cities available for filtering.</p>
+                      )}
               </div>
-            </div>
-
-            {/* Progress Status Categories */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Progress Status</h3>
-              <div className="flex flex-wrap gap-2">
+                  </TabsContent>
+                  
+                  <TabsContent value="progress">
+                    <h4 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Select Progress Status</h4>
+                    <div className="flex flex-wrap gap-3">
                 {['excavation', 'on_progress', 'semi_finished', 'fully_finished'].map((status) => (
                   <button
                     key={status}
                     onClick={() => handleProgressFilter(status)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      selectedProgress === status
-                        ? 'bg-gold-500 text-black'
-                        : 'bg-[var(--portal-card-bg)] text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]'
+                          className={`px-5 py-2 rounded-full text-base font-medium transition-all shadow-sm 
+                            ${selectedProgress === status
+                              ? 'bg-gold-500 text-black border border-gold-600'
+                              : 'bg-[var(--portal-bg)] text-[var(--portal-text-secondary)] border border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] hover:border-gold-500'
                     }`}
                   >
                     {status === 'excavation' ? 'Excavation (ቁፋሮ)' :
@@ -297,28 +345,30 @@ const AgentPublicProfile = () => {
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Bank Option Categories */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Bank Option</h3>
-              <div className="flex flex-wrap gap-2">
+                  </TabsContent>
+                  
+                  <TabsContent value="bank_option">
+                    <h4 className="text-lg font-semibold mb-3 text-[var(--portal-text)]">Bank Option Availability</h4>
+                    <div className="flex flex-wrap gap-3">
                 {[true, false].map((hasBank) => (
                   <button
                     key={String(hasBank)}
                     onClick={() => handleBankOptionFilter(hasBank)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      selectedBankOption === hasBank
-                        ? 'bg-gold-500 text-black'
-                        : 'bg-[var(--portal-card-bg)] text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]'
+                          className={`px-5 py-2 rounded-full text-base font-medium transition-all shadow-sm 
+                            ${selectedBankOption === hasBank
+                              ? 'bg-gold-500 text-black border border-gold-600'
+                              : 'bg-[var(--portal-bg)] text-[var(--portal-text-secondary)] border border-[var(--portal-border)] hover:bg-[var(--portal-bg-hover)] hover:border-gold-500'
                     }`}
                   >
                     {hasBank ? 'Bank Option Available' : 'No Bank Option'}
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </motion.div>
           
           {/* Listings Section */}
           <motion.div 
@@ -349,7 +399,6 @@ const AgentPublicProfile = () => {
                   <ListingCard 
                     id={listing.id}
                     title={listing.title}
-                    price={listing.price}
                     location={listing.location}
                     mainImageUrl={listing.main_image_url}
                     agentSlug={agentSlug}

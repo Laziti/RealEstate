@@ -12,6 +12,7 @@ import {
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from '@/contexts/AuthContext';
 
 // Database response types
 interface Profile {
@@ -54,6 +55,7 @@ const PaymentApprovalSidebar = () => {
   const [expandedReceipt, setExpandedReceipt] = useState<string | null>(null);
   const [objectUrls, setObjectUrls] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const { refreshSession } = useAuth();
 
   useEffect(() => {
     fetchPaymentRequests();
@@ -226,19 +228,33 @@ const PaymentApprovalSidebar = () => {
       }
 
       // Update subscription_requests status
-      const { error: updateError } = await supabase
+      const { error: updateStatusError } = await supabase
         .from('subscription_requests')
         .update({ status: 'approved' })
         .eq('id', requestId);
 
-      if (updateError) throw updateError;
+      if (updateStatusError) throw updateStatusError;
 
-      // Calculate subscription end date based on duration
-      const subscriptionEndDate = new Date();
-      if (requestData.duration === 'monthly') {
-        subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
-      } else if (requestData.duration === 'yearly') {
-        subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
+      // Calculate subscription start and end date based on duration
+      const subscriptionStartDate = new Date();
+      subscriptionStartDate.setUTCHours(0, 0, 0, 0);
+      const subscriptionEndDate = new Date(subscriptionStartDate);
+      const duration = requestData.duration.toLowerCase();
+      if (duration.includes('month')) {
+        // Extract number of months (e.g., '6 months', '1 month')
+        const match = duration.match(/(\d+)/);
+        const months = match ? parseInt(match[1], 10) : 1;
+        subscriptionEndDate.setUTCMonth(subscriptionEndDate.getUTCMonth() + months);
+      } else if (duration.includes('year')) {
+        // Extract number of years (e.g., '1 year')
+        const match = duration.match(/(\d+)/);
+        const years = match ? parseInt(match[1], 10) : 1;
+        subscriptionEndDate.setUTCFullYear(subscriptionEndDate.getUTCFullYear() + years);
+      } else if (duration.includes('day')) {
+        // Extract number of days (e.g., '30 days')
+        const match = duration.match(/(\d+)/);
+        const days = match ? parseInt(match[1], 10) : 30;
+        subscriptionEndDate.setUTCDate(subscriptionEndDate.getUTCDate() + days);
       }
 
       // Update user's profile with pro status and subscription details
@@ -251,7 +267,7 @@ const PaymentApprovalSidebar = () => {
             listings_per_month: requestData.listings_per_month,
             duration: requestData.duration,
             amount: requestData.amount,
-            start_date: new Date().toISOString(),
+            start_date: subscriptionStartDate.toISOString(),
             end_date: subscriptionEndDate.toISOString(),
             subscription_request_id: requestId
           },
@@ -270,6 +286,10 @@ const PaymentApprovalSidebar = () => {
 
       // Refresh the requests list
       await fetchPaymentRequests();
+
+      // Refresh the user's session/profile in AuthContext
+      await refreshSession();
+
     } catch (error) {
       console.error('Error approving payment:', error);
     } finally {

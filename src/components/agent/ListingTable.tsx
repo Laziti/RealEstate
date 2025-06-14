@@ -61,20 +61,20 @@ const ListingTable = ({ listings, onEdit }: ListingTableProps) => {
             <TableBody>
               {listings.map((listing) => (
                 <TableRow key={listing.id}>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium overflow-hidden">
                     <div className="flex items-center">
                       {listing.main_image_url ? (
                         <img 
                           src={listing.main_image_url} 
                           alt={listing.title}
-                          className="w-12 h-12 object-cover rounded-md mr-3"
+                          className="w-12 h-12 object-cover rounded-md mr-3 flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-12 h-12 bg-[var(--portal-highlight)] rounded-md mr-3 flex items-center justify-center text-[var(--portal-text-secondary)]">
+                        <div className="w-12 h-12 bg-[var(--portal-highlight)] rounded-md mr-3 flex items-center justify-center text-[var(--portal-text-secondary)] flex-shrink-0">
                           No img
                         </div>
                       )}
-                      <span className="font-medium text-[var(--portal-text)]">{listing.title}</span>
+                      <span className="font-medium text-[var(--portal-text)] truncate max-w-[150px]">{listing.title}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-[var(--portal-text)]">

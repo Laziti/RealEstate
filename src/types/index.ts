@@ -17,6 +17,8 @@ export interface Listing {
 }
 
 export interface Agent {
+  whatsapp_link?: string;
+  telegram_link?: string;
   id: string;
   first_name: string;
   last_name: string;

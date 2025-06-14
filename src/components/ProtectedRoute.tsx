@@ -35,7 +35,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
     // Redirect agent to agent dashboard or pending page depending on status
     if (userRole === 'agent') {
-      if (userStatus === 'approved') {
+      if (userStatus === 'approved' || userStatus === 'active') {
         return <Navigate to="/dashboard" replace />;
       } else {
         return <Navigate to="/pending" replace />;
@@ -51,7 +51,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       return <Navigate to="/pending" replace />;
     }
     
-    if (userRole === 'agent' && userStatus === 'approved') {
+    if (userRole === 'agent' && (userStatus === 'approved' || userStatus === 'active')) {
       return <Navigate to="/dashboard" replace />;
     }
     
