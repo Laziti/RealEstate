@@ -274,7 +274,7 @@ const AgentDashboard = () => {
       </p>
       <Button 
         onClick={() => setActiveTab('create')} 
-        className="bg-gold-500 hover:bg-gold-600 text-black flex items-center gap-2"
+        className="bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-[var(--portal-button-text)] flex items-center gap-2"
       >
         <Plus className="h-4 w-4" />
         Create New Listing
@@ -304,7 +304,7 @@ const AgentDashboard = () => {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="border-[var(--portal-border)] text-[var(--portal-text-secondary)] hover:text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                    className="bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)] border-none"
                   >
                     <Share2 className="h-4 w-4 mr-2" />
                     Share My Profile

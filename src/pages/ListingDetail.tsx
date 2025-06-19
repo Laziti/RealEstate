@@ -321,7 +321,7 @@ const ListingDetail = () => {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="bg-[var(--portal-card-bg)] text-gold-500 border-gold-500 hover:bg-gold-500 hover:text-black transition-all duration-300 flex items-center justify-center gap-2 px-6 py-3"
+                    className="bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)] border-none flex items-center justify-center gap-2 px-6 py-3"
                   >
                     <Share2 className="h-4 w-4" />
                     Share Listing
@@ -502,7 +502,7 @@ const ListingDetail = () => {
                   {agent.phone_number && (
                     <a
                       href={`tel:${agent.phone_number}`}
-                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors font-semibold shadow-md"
+                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] rounded-lg hover:bg-[var(--portal-button-hover)] transition-colors font-semibold shadow-md"
                     >
                       <Phone className="h-5 w-5" />
                       Call {agent.first_name}
@@ -513,7 +513,7 @@ const ListingDetail = () => {
                       href={agent.whatsapp_link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md"
+                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] rounded-lg hover:bg-[var(--portal-button-hover)] transition-colors font-semibold shadow-md"
                     >
                       <MessageCircle className="h-5 w-5" />
                       WhatsApp
@@ -524,7 +524,7 @@ const ListingDetail = () => {
                       href={agent.telegram_link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
+                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] rounded-lg hover:bg-[var(--portal-button-hover)] transition-colors font-semibold shadow-md"
                     >
                       <Send className="h-5 w-5" />
                       Telegram

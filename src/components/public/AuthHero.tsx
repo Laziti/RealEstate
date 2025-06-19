@@ -2,6 +2,9 @@ import React, { useState, FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { motion } from 'framer-motion';
+import { ArrowRight, CheckCircle, Link as LinkIcon, Home, DollarSign } from 'lucide-react';
+import { createSlug } from '@/lib/formatters';
 
 const REAL_ESTATE_COMPANIES = [
   "Noah Real Estate",
@@ -18,7 +21,7 @@ const REAL_ESTATE_COMPANIES = [
 const AuthHero: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'signIn' | 'signUp'>('signIn');
   const navigate = useNavigate();
-  const { setUser, userRole } = useAuth();
+  const { userRole } = useAuth();
 
   // Form states
   const [signInEmail, setSignInEmail] = useState('');
@@ -33,12 +36,23 @@ const AuthHero: React.FC = () => {
   const [signUpOtherCompany, setSignUpOtherCompany] = useState('');
   const [showOtherCompanyInput, setShowOtherCompanyInput] = useState(false);
 
-
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
 
   useEffect(() => {
+    // Check if there's a stored auth mode preference
+    const authMode = localStorage.getItem('authMode');
+    if (authMode === 'signup') {
+      setActiveTab('signUp');
+    } else if (authMode === 'signin') {
+      setActiveTab('signIn');
+    }
+    
+    // Clear the stored preference
+    localStorage.removeItem('authMode');
+    
     if (signUpCompany === 'Other') {
       setShowOtherCompanyInput(true);
     } else {
@@ -60,14 +74,39 @@ const AuthHero: React.FC = () => {
     }
     setIsLoading(true);
     try {
+      // Check if Supabase URL and key are defined
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        throw new Error("Missing Supabase credentials. Please check ENV-SETUP.md for configuration instructions.");
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: signInEmail,
         password: signInPassword,
       });
-      if (error) throw error;
+      
+      if (error) {
+        // Handle Supabase auth errors with more specific messages
+        if (error.message === 'Invalid API key') {
+          throw new Error('Authentication error: Invalid Supabase API key. Please check your environment variables.');
+        } else {
+          throw error;
+        }
+      }
+      
       if (data.user) navigate('/dashboard');
     } catch (error: any) {
-      setErrorMessage(error.message || 'Failed to sign in.');
+      // Provide a more detailed error message for common issues
+      let errorMsg = error.message || 'Failed to sign in.';
+      
+      if (errorMsg.includes('Invalid API key')) {
+        errorMsg = 'Authentication error: Missing or invalid Supabase credentials. Please check ENV-SETUP.md for setup instructions.';
+      } else if (errorMsg.includes('Invalid login credentials')) {
+        errorMsg = 'Invalid email or password. Please try again.';
+      } else if (errorMsg.includes('rate limit')) {
+        errorMsg = 'Too many sign-in attempts. Please try again in a few minutes.';
+      }
+      
+      setErrorMessage(errorMsg);
       console.error('Sign in error:', error);
     } finally {
       setIsLoading(false);
@@ -100,6 +139,11 @@ const AuthHero: React.FC = () => {
     setIsLoading(true);
     const companyToSubmit = signUpCompany === 'Other' ? signUpOtherCompany : signUpCompany;
     try {
+      // Check if Supabase URL and key are defined
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        throw new Error("Missing Supabase credentials. Please check ENV-SETUP.md for configuration instructions.");
+      }
+      
       const { data: signUpAuthData, error: signUpError } = await supabase.auth.signUp({
         email: signUpEmail,
         password: signUpPassword,
@@ -112,8 +156,21 @@ const AuthHero: React.FC = () => {
           }
         }
       });
-      if (signUpError) throw signUpError;
+      
+      if (signUpError) {
+        // Handle Supabase auth errors with more specific messages
+        if (signUpError.message === 'Invalid API key') {
+          throw new Error('Authentication error: Invalid Supabase API key. Please check your environment variables.');
+        } else {
+          throw signUpError;
+        }
+      }
+      
       if (!signUpAuthData.user) throw new Error("Sign up successful, but no user data returned.");
+      
+      // Generate slug from first and last name
+      const slug = createSlug(`${signUpFirstName} ${signUpLastName}`);
+      
       const { error: profileError } = await supabase.from('profiles').insert({
         id: signUpAuthData.user.id,
         user_id: signUpAuthData.user.id,
@@ -121,18 +178,25 @@ const AuthHero: React.FC = () => {
         last_name: signUpLastName,
         phone_number: signUpPhoneNumber,
         company: companyToSubmit,
-        status: 'active'
+        status: 'active',
+        slug,
       });
+      
       if (profileError) {
         console.error('Error creating profile:', profileError);
         throw new Error('Account created, but profile setup failed. Please contact support.');
       }
+      
       const { error: roleError } = await supabase.from('user_roles').insert({ user_id: signUpAuthData.user.id, role: 'agent' });
       if (roleError) {
         console.error('Error setting user role:', roleError);
         throw new Error('Account created, but role assignment failed. Please contact support.');
       }
-      alert('Sign up successful! You can now sign in.');
+      
+      setSignUpSuccess(true);
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
       setActiveTab('signIn');
       setSignInEmail(signUpEmail);
       setSignInPassword('');
@@ -144,7 +208,16 @@ const AuthHero: React.FC = () => {
       setSignUpCompany('');
       setSignUpOtherCompany('');
     } catch (error: any) {
-      setErrorMessage(error.message || 'Failed to sign up.');
+      // Provide a more detailed error message for common issues
+      let errorMsg = error.message || 'Failed to sign up.';
+      
+      if (errorMsg.includes('Invalid API key')) {
+        errorMsg = 'Authentication error: Missing or invalid Supabase credentials. Please check ENV-SETUP.md for setup instructions.';
+      } else if (errorMsg.includes('rate limit')) {
+        errorMsg = 'Too many sign-up attempts. Please try again in a few minutes.';
+      }
+      
+      setErrorMessage(errorMsg);
       console.error('Sign up error:', error);
     } finally {
       setIsLoading(false);
@@ -155,14 +228,66 @@ const AuthHero: React.FC = () => {
   const buttonBaseClasses = "w-full bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-[var(--portal-button-text)] font-semibold p-3 rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--portal-accent)] focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 transform";
 
   return (
-    <div className="min-h-screen bg-[var(--portal-bg)] text-[var(--portal-text)] flex flex-col items-center justify-center p-4 transition-all duration-500">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold gradient-text">Agent Portal Access</h1>
-          <p className="text-[var(--portal-text-secondary)]">Your Gateway to Our Services</p>
+    <div className="min-h-screen bg-gradient-to-b from-[var(--portal-bg)] to-[var(--portal-card-bg)] text-[var(--portal-text)] flex items-center justify-center py-8">
+      {/* Main Content */}
+      <div className="container mx-auto px-6 relative z-10 flex flex-col lg:flex-row items-center">
+        {/* Left side - Hero Text */}
+        <div className="w-full lg:w-1/2 lg:pr-12 mb-10 lg:mb-0">
+          <div className="flex justify-center lg:justify-start mb-0">
+            <img src="/LogoIcon.svg" alt="Company Logo" className="h-40 md:h-48 lg:h-48 transform hover:scale-105 transition-transform duration-300" />
+          </div>
+          
+          <motion.h1 
+            className="-mt-6 text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-center lg:text-left"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            Your Real Estate.
+            <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-[var(--portal-accent)] to-[#ff5a5a]"> Your Brand.</span>
+          </motion.h1>
+          
+          <motion.p 
+            className="text-xl md:text-2xl text-[var(--portal-text-secondary)] mb-10 text-center lg:text-left"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            Create listings under your name and share with clients.
+          </motion.p>
+          
+          <motion.div 
+            className="flex flex-wrap justify-center lg:justify-start gap-3 text-[var(--portal-text-secondary)]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            <div className="flex items-center px-4 py-1.5 rounded-full bg-[var(--portal-accent)]/5 border border-[var(--portal-accent)]/10">
+              <LinkIcon className="h-3.5 w-3.5 text-[var(--portal-accent)] mr-2" />
+              <span className="font-medium text-sm">Agent Link</span>
+            </div>
+            
+            <div className="flex items-center px-4 py-1.5 rounded-full bg-[var(--portal-accent)]/5 border border-[var(--portal-accent)]/10">
+              <Home className="h-3.5 w-3.5 text-[var(--portal-accent)] mr-2" />
+              <span className="font-medium text-sm">100 Listings</span>
+            </div>
+            
+            <div className="flex items-center px-4 py-1.5 rounded-full bg-[var(--portal-accent)]/5 border border-[var(--portal-accent)]/10">
+              <DollarSign className="h-3.5 w-3.5 text-[var(--portal-accent)] mr-2" />
+              <span className="font-medium text-sm">5000 ETB/6mo</span>
+            </div>
+          </motion.div>
         </div>
 
-        <div className="flex mb-4 border-b border-[var(--portal-border)]">
+        {/* Right side - Auth Form */}
+        <div className="w-full lg:w-1/2 lg:pl-12">
+          <motion.div 
+            className="bg-[var(--portal-card-bg)] p-8 rounded-2xl shadow-2xl border-2 border-[var(--portal-accent)] relative overflow-hidden h-[480px] max-w-md mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          >
+            <div className="flex mb-6 border-b border-[var(--portal-border)]">
           <button
             className={`flex-1 py-3 px-4 text-center font-semibold transition-colors duration-300 ${
               activeTab === 'signIn'
@@ -186,48 +311,40 @@ const AuthHero: React.FC = () => {
         </div>
 
         {errorMessage && (
-          <div className="mb-4 p-3 bg-red-700/30 border border-red-600 text-red-400 rounded-md text-center">
+              <div className="mb-6 p-3 bg-red-700/30 border border-red-600 text-red-400 rounded-md text-center">
             {errorMessage}
           </div>
         )}
 
-        <div className="bg-[var(--portal-card-bg)] p-6 sm:p-8 rounded-2xl shadow-xl border border-[var(--portal-border)] relative overflow-hidden min-h-[560px] animate-pulse"> {/* Used animate-pulse as placeholder */}
           {/* Sign In Form */}
-          <div
-            className={`transition-opacity duration-500 ease-in-out ${
-              activeTab === 'signIn' ? 'opacity-100' : 'opacity-0 absolute invisible pointer-events-none'
-            }`}
-          >
-            <form onSubmit={handleSignIn} className="space-y-6">
-              <h2 className="text-3xl font-bold text-center text-[var(--portal-accent)] mb-6">Sign In</h2>
-              <div>
-                <label htmlFor="email-signin" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                  Email Address
-                </label>
+            <div className={`transition-opacity duration-300 h-[350px] ${activeTab === 'signIn' ? 'block' : 'hidden'}`}>
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-[var(--portal-label-text)]">Email</label>
                 <input
+                    id="email"
                   type="email"
-                  id="email-signin"
                   value={signInEmail}
                   onChange={(e) => setSignInEmail(e.target.value)}
+                    placeholder="your@email.com"
                   className={inputBaseClasses}
-                  placeholder="you@example.com"
                   disabled={isLoading}
                 />
               </div>
-              <div>
-                <label htmlFor="password-signin" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                  Password
-                </label>
+                
+                <div className="space-y-2">
+                  <label htmlFor="password" className="block text-sm font-medium text-[var(--portal-label-text)]">Password</label>
                 <input
+                    id="password"
                   type="password"
-                  id="password-signin"
                   value={signInPassword}
                   onChange={(e) => setSignInPassword(e.target.value)}
+                    placeholder="••••••••"
                   className={inputBaseClasses}
-                  placeholder="••••••••"
                   disabled={isLoading}
                 />
               </div>
+                
               <button
                 type="submit"
                 className={buttonBaseClasses}
@@ -239,129 +356,121 @@ const AuthHero: React.FC = () => {
           </div>
 
           {/* Sign Up Form */}
-          <div
-            className={`transition-opacity duration-500 ease-in-out ${
-              activeTab === 'signUp' ? 'opacity-100' : 'opacity-0 absolute invisible pointer-events-none'
-            }`}
-          >
-            <form onSubmit={handleSignUp} className="space-y-4">
-              <h2 className="text-3xl font-bold text-center text-[var(--portal-accent)] mb-4">Create Your Account</h2>
-              <div className="flex space-x-4">
-                <div className="flex-1">
-                  <label htmlFor="firstName-signup" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                    First Name
-                  </label>
+            <div className={`transition-opacity duration-300 h-[350px] overflow-y-auto ${activeTab === 'signUp' ? 'block' : 'hidden'}`}>
+              {signUpSuccess && (
+                <div className="mb-4 p-3 bg-green-700/30 border border-green-600 text-green-400 rounded-md text-center">
+                  Sign up successful! Redirecting to your portal...
+                </div>
+              )}
+              <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="firstName" className="block text-sm font-medium text-[var(--portal-label-text)]">First Name</label>
                   <input
+                      id="firstName"
                     type="text"
-                    id="firstName-signup"
                     value={signUpFirstName}
                     onChange={(e) => setSignUpFirstName(e.target.value)}
+                      placeholder="John"
                     className={inputBaseClasses}
-                    placeholder="John"
                     disabled={isLoading}
                   />
                 </div>
-                <div className="flex-1">
-                  <label htmlFor="lastName-signup" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                    Last Name
-                  </label>
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="lastName" className="block text-sm font-medium text-[var(--portal-label-text)]">Last Name</label>
                   <input
+                      id="lastName"
                     type="text"
-                    id="lastName-signup"
                     value={signUpLastName}
                     onChange={(e) => setSignUpLastName(e.target.value)}
+                      placeholder="Doe"
                     className={inputBaseClasses}
-                    placeholder="Doe"
                     disabled={isLoading}
                   />
                 </div>
               </div>
-              <div>
-                <label htmlFor="email-signup" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                  Email Address
-                </label>
+                
+                <div className="space-y-2">
+                  <label htmlFor="signUpEmail" className="block text-sm font-medium text-[var(--portal-label-text)]">Email</label>
                 <input
+                    id="signUpEmail"
                   type="email"
-                  id="email-signup"
                   value={signUpEmail}
                   onChange={(e) => setSignUpEmail(e.target.value)}
+                    placeholder="your@email.com"
                   className={inputBaseClasses}
-                  placeholder="you@example.com"
                   disabled={isLoading}
                 />
               </div>
-              <div>
-                <label htmlFor="password-signup" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                  Password
-                </label>
+                
+                <div className="space-y-2">
+                  <label htmlFor="signUpPassword" className="block text-sm font-medium text-[var(--portal-label-text)]">Password</label>
                 <input
+                    id="signUpPassword"
                   type="password"
-                  id="password-signup"
                   value={signUpPassword}
                   onChange={(e) => setSignUpPassword(e.target.value)}
+                    placeholder="••••••••"
                   className={inputBaseClasses}
-                  placeholder="•••••••• (min. 6 characters)"
                   disabled={isLoading}
                 />
               </div>
-              <div>
-                <label htmlFor="phoneNumber-signup" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                  Phone Number
-                </label>
+                
+                <div className="space-y-2">
+                  <label htmlFor="phoneNumber" className="block text-sm font-medium text-[var(--portal-label-text)]">Phone Number</label>
                 <input
+                    id="phoneNumber"
                   type="tel"
-                  id="phoneNumber-signup"
                   value={signUpPhoneNumber}
                   onChange={(e) => setSignUpPhoneNumber(e.target.value)}
+                    placeholder="+251 91 234 5678"
                   className={inputBaseClasses}
-                  placeholder="+251 91 234 5678"
                   disabled={isLoading}
                 />
               </div>
-              <div>
-                <label htmlFor="company-signup" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                  Real Estate Company
-                </label>
+                
+                <div className="space-y-2">
+                  <label htmlFor="company" className="block text-sm font-medium text-[var(--portal-label-text)]">Company</label>
                 <select
-                  id="company-signup"
+                    id="company"
                   value={signUpCompany}
                   onChange={(e) => setSignUpCompany(e.target.value as typeof REAL_ESTATE_COMPANIES[number] | '')}
-                  className={`${inputBaseClasses} appearance-none`}
+                    className={inputBaseClasses}
                   disabled={isLoading}
                 >
-                  <option value="" disabled>Select your company</option>
+                    <option value="">Select a company</option>
                   {REAL_ESTATE_COMPANIES.map((company) => (
-                    <option key={company} value={company}>
-                      {company}
-                    </option>
+                      <option key={company} value={company}>{company}</option>
                   ))}
                 </select>
               </div>
+                
               {showOtherCompanyInput && (
-                <div>
-                  <label htmlFor="otherCompany-signup" className="block text-sm font-medium text-[var(--portal-label-text)] mb-1">
-                    Company Name (if Other)
-                  </label>
+                  <div className="space-y-2">
+                    <label htmlFor="otherCompany" className="block text-sm font-medium text-[var(--portal-label-text)]">Specify Company</label>
                   <input
+                      id="otherCompany"
                     type="text"
-                    id="otherCompany-signup"
                     value={signUpOtherCompany}
                     onChange={(e) => setSignUpOtherCompany(e.target.value)}
+                      placeholder="Your company name"
                     className={inputBaseClasses}
-                    placeholder="Enter your company name"
                     disabled={isLoading}
                   />
                 </div>
               )}
+                
               <button
                 type="submit"
-                className={`${buttonBaseClasses} pt-2 pb-2.5`} // Adjusted padding for button text centering
-                disabled={isLoading}
+                className={buttonBaseClasses}
+                disabled={isLoading || signUpSuccess}
               >
-                {isLoading ? 'Creating Account...' : 'Sign Up'}
+                {isLoading ? 'Signing Up...' : 'Sign Up'}
               </button>
             </form>
           </div>
+          </motion.div>
         </div>
       </div>
     </div>

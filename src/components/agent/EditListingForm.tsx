@@ -514,7 +514,7 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
               variant="outline" 
               onClick={onCancel}
               disabled={isSubmitting}
-              className="border-[var(--portal-border)] text-[var(--portal-text)]"
+              className="bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)] border-none"
             >
               Cancel
             </Button>

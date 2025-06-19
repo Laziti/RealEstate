@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Database response types
 interface Profile {
@@ -315,34 +316,32 @@ const PaymentApprovalSidebar = () => {
   };
 
   const renderPaymentRequest = (request: PaymentRequest) => (
-    <div key={request.id} className="border rounded-lg p-4 space-y-3">
+    <div key={request.id} className="border rounded-lg p-4 space-y-3 bg-white">
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="font-semibold">
+          <h3 className="font-semibold text-black">
             {request.user_profile?.first_name} {request.user_profile?.last_name}
           </h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-700">
             {request.user_profile?.phone_number} • {request.user_profile?.career}
           </p>
-          <p className="text-sm font-medium mt-1">
+          <p className="text-sm font-medium mt-1 text-black">
             Plan: {request.plan_type}
           </p>
-          <p className="text-sm font-medium">
+          <p className="text-sm font-medium text-black">
             Amount: ${request.amount}
           </p>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-700 mt-1">
             Submitted: {format(new Date(request.created_at), 'MMM d, yyyy')}
           </p>
         </div>
-        <Badge variant={
-          request.status === 'pending' 
-            ? 'outline' 
-            : request.status === 'approved' 
-              ? 'secondary'
-              : 'destructive'
-        }>
-          {request.status}
-        </Badge>
+        <span className={`px-2 py-1 rounded-full text-xs font-semibold 
+          ${request.status === 'pending' ? 'bg-[var(--portal-accent)]/10 text-[var(--portal-accent)] border border-[var(--portal-accent)]/20' : ''}
+          ${request.status === 'approved' ? 'bg-gold-500/10 text-gold-500 border border-gold-500/20' : ''}
+          ${request.status === 'rejected' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : ''}
+        `}>
+          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+        </span>
       </div>
 
       {request.receipt_url && (
@@ -416,72 +415,82 @@ const PaymentApprovalSidebar = () => {
   const rejectedRequests = requests.filter(r => r.status === 'rejected');
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <h2 className="text-2xl font-bold">Payment Approvals</h2>
+    <div className="flex flex-col bg-white min-h-screen w-full">
+      <div className="flex-none p-4">
+        <h2 className="text-2xl font-bold text-black">Payment Approvals</h2>
+      </div>
       
-      <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            Pending
-            {pendingRequests.length > 0 && (
-              <Badge variant="secondary" className="ml-1">
-                {pendingRequests.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="approved" className="flex items-center gap-2">
-            Approved
-            {approvedRequests.length > 0 && (
-              <Badge variant="secondary" className="ml-1">
-                {approvedRequests.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="rejected" className="flex items-center gap-2">
-            Rejected
-            {rejectedRequests.length > 0 && (
-              <Badge variant="secondary" className="ml-1">
-                {rejectedRequests.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="pending" className="w-full flex flex-col flex-1">
+        <div className="flex-none px-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              Pending
+              {pendingRequests.length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {pendingRequests.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="approved" className="flex items-center gap-2">
+              Approved
+              {approvedRequests.length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {approvedRequests.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="rejected" className="flex items-center gap-2">
+              Rejected
+              {rejectedRequests.length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {rejectedRequests.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="pending">
-          {pendingRequests.length === 0 ? (
-            <div className="text-center p-8 text-gray-500">
-              No pending payment requests
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {pendingRequests.map(renderPaymentRequest)}
-            </div>
-          )}
-        </TabsContent>
+        <div className="flex-1">
+          <ScrollArea className="h-[calc(100vh-180px)]">
+            <div className="p-4">
+              <TabsContent value="pending">
+                {pendingRequests.length === 0 ? (
+                  <div className="text-center p-8 text-gray-500">
+                    No pending payment requests
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingRequests.map(renderPaymentRequest)}
+                  </div>
+                )}
+              </TabsContent>
 
-        <TabsContent value="approved">
-          {approvedRequests.length === 0 ? (
-            <div className="text-center p-8 text-gray-500">
-              No approved payment requests
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {approvedRequests.map(renderPaymentRequest)}
-            </div>
-          )}
-        </TabsContent>
+              <TabsContent value="approved">
+                {approvedRequests.length === 0 ? (
+                  <div className="text-center p-8 text-gray-500">
+                    No approved payment requests
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {approvedRequests.map(renderPaymentRequest)}
+                  </div>
+                )}
+              </TabsContent>
 
-        <TabsContent value="rejected">
-          {rejectedRequests.length === 0 ? (
-            <div className="text-center p-8 text-gray-500">
-              No rejected payment requests
+              <TabsContent value="rejected">
+                {rejectedRequests.length === 0 ? (
+                  <div className="text-center p-8 text-gray-500">
+                    No rejected payment requests
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {rejectedRequests.map(renderPaymentRequest)}
+                  </div>
+                )}
+              </TabsContent>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {rejectedRequests.map(renderPaymentRequest)}
-            </div>
-          )}
-        </TabsContent>
+          </ScrollArea>
+        </div>
       </Tabs>
     </div>
   );

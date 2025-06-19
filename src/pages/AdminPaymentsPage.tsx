@@ -9,14 +9,16 @@ const AdminPaymentsPage = () => {
       <div className="flex h-screen w-full">
         <AdminSidebar />
         <SidebarInset>
-          <div className="flex items-center justify-between border-b p-4">
-            <div className="flex items-center">
-              <SidebarTrigger />
-              <h1 className="ml-4 text-xl font-semibold">Payment Approvals</h1>
+          <div className="bg-white min-h-screen flex flex-col pb-24">
+            <div className="flex items-center justify-between border-b p-4">
+              <div className="flex items-center">
+                <SidebarTrigger />
+                <h1 className="ml-4 text-xl font-semibold text-black">Payment Approvals</h1>
+              </div>
             </div>
-          </div>
-          <div className="p-6">
-            <PaymentApprovalSidebar />
+            <div className="p-6 flex-1">
+              <PaymentApprovalSidebar />
+            </div>
           </div>
         </SidebarInset>
       </div>

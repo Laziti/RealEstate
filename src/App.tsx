@@ -10,16 +10,18 @@ import LoadingScreen from './components/LoadingScreen';
 import NotFound from './pages/NotFound';
 import { AuthProvider } from "./contexts/AuthContext";
 import Auth from "./pages/Auth";
+import Index from "./pages/Index";
 import AdminListingsPage from "./pages/AdminListingsPage";
 import AgentPublicProfile from "./pages/AgentPublicProfile";
 import ListingDetail from "./pages/ListingDetail";
+import './styles/portal-theme.css';
 
 const queryClient = new QueryClient();
 
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Auth />} />
+      <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
       
       {/* Public Agent Profile Routes - These must come before protected routes */}

@@ -136,6 +136,7 @@ const AdminUsersPage = () => {
       value: 5
     }
   });
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   
   const form = useForm<LimitFormValues>({
     defaultValues: {
@@ -349,14 +350,12 @@ const AdminUsersPage = () => {
   };
 
   const renderLimitBadge = (limit?: ListingLimit): React.ReactNode => {
-    if (!limit) return 'Default (5/month)';
-    
+    if (!limit) return <span className="text-red-600 font-semibold">Default (5/month)</span>;
     if (limit.type === 'unlimited') {
-      return <Badge variant="outline" className="bg-blue-50">Unlimited</Badge>;
+      return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">Unlimited</Badge>;
     }
-    
     return (
-      <Badge variant="outline" className="bg-green-50">
+      <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
         {limit.value}/{limit.type}
       </Badge>
     );
@@ -454,37 +453,88 @@ const AdminUsersPage = () => {
         }
       }
 
+      // Map subscription_duration to allowed DB values for insert only
+      let dbSubscriptionDuration: 'month' | '6months' | 'year';
+      switch (newUser.subscription_duration) {
+        case 'monthly':
+          dbSubscriptionDuration = 'month';
+          break;
+        case '6months':
+          dbSubscriptionDuration = '6months';
+          break;
+        case 'yearly':
+          dbSubscriptionDuration = 'year';
+          break;
+      }
+
       // Create profile
-      const { error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .insert({
           id: authData.user.id,
-          email: newUser.email,
+          user_id: authData.user.id,
           first_name: newUser.first_name,
           last_name: newUser.last_name,
-          role: 'agent',
           status: 'active',
-          subscription_status: newUser.subscription_status,
-          subscription_end: subscription_end?.toISOString(),
           listing_limit: newUser.listing_limit.type === 'unlimited' 
             ? { type: 'unlimited' as const }
             : { 
                 type: newUser.listing_limit.type as ListingLimitType, 
                 value: newUser.listing_limit.value 
-              }
+              },
+          subscription_status: newUser.subscription_status,
+          subscription_type: newUser.subscription_status, // fallback for both
+          subscription_duration: dbSubscriptionDuration,
+          subscription_end_date: subscription_end?.toISOString(),
+          social_links: {},
         });
-
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile insert error:', profileError, profileData);
+        throw profileError;
+      }
 
       // Create user role
-      const { error: roleError } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .insert({
           user_id: authData.user.id,
           role: 'agent'
         });
+      if (roleError) {
+        console.error('User role insert error:', roleError, roleData);
+        throw roleError;
+      }
 
-      if (roleError) throw roleError;
+      // Generate unique slug for public profile
+      const baseSlug = `${newUser.first_name}-${newUser.last_name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      let slug = baseSlug;
+      let slugUnique = false;
+      let attempt = 1;
+      while (!slugUnique) {
+        const { data: existing, error: slugError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('slug', slug);
+        if (slugError) {
+          console.error('Slug check error:', slugError);
+          throw slugError;
+        }
+        if (!existing || existing.length === 0) {
+          slugUnique = true;
+        } else {
+          attempt++;
+          slug = `${baseSlug}-${attempt}`;
+        }
+      }
+      // Update profile with slug
+      const { error: slugUpdateError } = await supabase
+        .from('profiles')
+        .update({ slug })
+        .eq('id', authData.user.id);
+      if (slugUpdateError) {
+        console.error('Slug update error:', slugUpdateError);
+        throw slugUpdateError;
+      }
 
       toast.success('User created successfully');
       setCreateDialogOpen(false);
@@ -497,7 +547,7 @@ const AdminUsersPage = () => {
         first_name: '',
         last_name: '',
         subscription_status: 'free',
-        subscription_duration: 'monthly',
+        subscription_duration: 'monthly', // always use 'monthly' for UI state
         listing_limit: {
           type: 'month',
           value: 5
@@ -519,42 +569,26 @@ const AdminUsersPage = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    setLoading(true);
     try {
-      // Delete user's listings
-      const { error: listingsError } = await supabase
-        .from('listings')
-        .delete()
-        .eq('user_id', userId);
-      
-      if (listingsError) throw listingsError;
-      
-      // Delete user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-        
-      if (roleError) throw roleError;
-      
-      // Delete user profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-        
-      if (profileError) throw profileError;
-      
-      // Delete auth user
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      
-      if (authError) throw authError;
-
-      toast.success('User deleted successfully');
-      fetchUsers(); // Refresh the list
-      setSelectedUser(null);
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      const response = await fetch("https://wixmnvdmcnlbiyxnfpfc.functions.supabase.co/delete-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to delete user");
+      setShowDeleteSuccess(true);
+      setDetailsDialogOpen(false);
     } catch (error: any) {
-      console.error('Error deleting user:', error);
-      toast.error(error.message || 'Failed to delete user');
+      toast.error("Error deleting user: " + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -563,350 +597,357 @@ const AdminUsersPage = () => {
       <div className="flex h-screen w-full">
         <AdminSidebar />
         <SidebarInset>
-          <div className="flex items-center justify-between border-b p-4">
-            <div className="flex items-center">
-              <SidebarTrigger />
-              <h1 className="ml-4 text-xl font-semibold">User Management</h1>
-            </div>
-            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-gold-500 text-black hover:bg-gold-600">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Create User
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Create New User</DialogTitle>
-                  <DialogDescription>
-                    Create a new agent account with subscription details.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="first_name">First Name</Label>
-                      <Input
-                        id="first_name"
-                        value={newUser.first_name}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, first_name: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last_name">Last Name</Label>
-                      <Input
-                        id="last_name"
-                        value={newUser.last_name}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, last_name: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={newUser.email}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={newUser.password}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="subscription">Subscription Type</Label>
-                      <Select
-                        value={newUser.subscription_status}
-                        onValueChange={(value: 'free' | 'pro') => setNewUser(prev => ({ ...prev, subscription_status: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select subscription type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="free">Free</SelectItem>
-                          <SelectItem value="pro">Pro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {newUser.subscription_status === 'pro' && (
+          <div className="bg-white min-h-screen flex flex-col">
+            <div className="flex items-center justify-between border-b p-4">
+              <div className="flex items-center">
+                <SidebarTrigger />
+                <h1 className="ml-4 text-xl font-semibold text-black">User Management</h1>
+              </div>
+              <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Create User
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl bg-white">
+                  <DialogHeader>
+                    <DialogTitle className="text-black">Create New User</DialogTitle>
+                    <DialogDescription className="text-gray-500">
+                      Create a new agent account with subscription details.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="duration">Subscription Duration</Label>
+                        <Label htmlFor="first_name" className="text-black">First Name</Label>
+                        <Input
+                          id="first_name"
+                          value={newUser.first_name}
+                          onChange={(e) => setNewUser(prev => ({ ...prev, first_name: e.target.value }))}
+                          className="bg-white text-black"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="last_name" className="text-black">Last Name</Label>
+                        <Input
+                          id="last_name"
+                          value={newUser.last_name}
+                          onChange={(e) => setNewUser(prev => ({ ...prev, last_name: e.target.value }))}
+                          className="bg-white text-black"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-black">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={newUser.email}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                        className="bg-white text-black"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-black">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={newUser.password}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                        className="bg-white text-black"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="subscription" className="text-black">Subscription Type</Label>
                         <Select
-                          value={newUser.subscription_duration}
-                          onValueChange={(value: 'monthly' | '6months' | 'yearly') => setNewUser(prev => ({ ...prev, subscription_duration: value }))}
+                          value={newUser.subscription_status}
+                          onValueChange={(value: 'free' | 'pro') => setNewUser(prev => ({ ...prev, subscription_status: value }))}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select duration" />
+                          <SelectTrigger className="bg-white text-black">
+                            <SelectValue placeholder="Select subscription type" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="monthly">1 Month</SelectItem>
-                            <SelectItem value="6months">6 Months</SelectItem>
-                            <SelectItem value="yearly">1 Year</SelectItem>
+                            <SelectItem value="free">Free</SelectItem>
+                            <SelectItem value="pro">Pro</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="limit_type">Listing Limit Type</Label>
-                      <Select
-                        value={newUser.listing_limit.type}
-                        onValueChange={(value: 'day' | 'week' | 'month' | 'year' | 'unlimited') => 
-                          setNewUser(prev => ({
-                            ...prev,
-                            listing_limit: {
-                              ...prev.listing_limit,
-                              type: value,
-                              value: value === 'unlimited' ? undefined : (prev.listing_limit.value || 5)
-                            }
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select limit type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="day">Per Day</SelectItem>
-                          <SelectItem value="week">Per Week</SelectItem>
-                          <SelectItem value="month">Per Month</SelectItem>
-                          <SelectItem value="year">Per Year</SelectItem>
-                          <SelectItem value="unlimited">Unlimited</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {newUser.subscription_status === 'pro' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="duration" className="text-black">Subscription Duration</Label>
+                          <Select
+                            value={newUser.subscription_duration}
+                            onValueChange={(value: 'monthly' | '6months' | 'yearly') => setNewUser(prev => ({ ...prev, subscription_duration: value }))}
+                          >
+                            <SelectTrigger className="bg-white text-black">
+                              <SelectValue placeholder="Select duration" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="monthly">1 Month</SelectItem>
+                              <SelectItem value="6months">6 Months</SelectItem>
+                              <SelectItem value="yearly">1 Year</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
-                    {newUser.listing_limit.type !== 'unlimited' && (
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="limit_value">Listing Limit Value</Label>
-                        <Input
-                          id="limit_value"
-                          type="number"
-                          min="1"
-                          value={newUser.listing_limit.value}
-                          onChange={(e) => setNewUser(prev => ({
-                            ...prev,
-                            listing_limit: {
-                              ...prev.listing_limit,
-                              value: parseInt(e.target.value) || 5
-                            }
-                          }))}
-                        />
+                        <Label htmlFor="limit_type" className="text-black">Listing Limit Type</Label>
+                        <Select
+                          value={newUser.listing_limit.type}
+                          onValueChange={(value: 'day' | 'week' | 'month' | 'year' | 'unlimited') => 
+                            setNewUser(prev => ({
+                              ...prev,
+                              listing_limit: {
+                                ...prev.listing_limit,
+                                type: value,
+                                value: value === 'unlimited' ? undefined : (prev.listing_limit.value || 5)
+                              }
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="bg-white text-black">
+                            <SelectValue placeholder="Select limit type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="day">Per Day</SelectItem>
+                            <SelectItem value="week">Per Week</SelectItem>
+                            <SelectItem value="month">Per Month</SelectItem>
+                            <SelectItem value="year">Per Year</SelectItem>
+                            <SelectItem value="unlimited">Unlimited</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
+                      {newUser.listing_limit.type !== 'unlimited' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="limit_value" className="text-black">Listing Limit Value</Label>
+                          <Input
+                            id="limit_value"
+                            type="number"
+                            min="1"
+                            value={newUser.listing_limit.value}
+                            onChange={(e) => setNewUser(prev => ({
+                              ...prev,
+                              listing_limit: {
+                                ...prev.listing_limit,
+                                value: parseInt(e.target.value) || 5
+                              }
+                            }))}
+                            className="bg-white text-black"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      className="w-full mt-4 bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white" 
+                      onClick={handleCreateUser}
+                      disabled={!newUser.email || !newUser.password || !newUser.first_name || !newUser.last_name}
+                    >
+                      Create User
+                    </Button>
                   </div>
-                  <Button 
-                    className="w-full mt-4" 
-                    onClick={handleCreateUser}
-                    disabled={!newUser.email || !newUser.password || !newUser.first_name || !newUser.last_name}
-                  >
-                    Create User
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-          
-          <div className="p-6 space-y-6 overflow-auto">
-            {/* Search and Filter */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex-1">
-                <SearchInput
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                className="gap-2"
-              >
-                <Filter className="h-4 w-4" />
-                Filter
-              </Button>
-              {(filters.status !== 'all' || searchTerm) && (
-                <Button
-                  variant="ghost"
-                  onClick={clearFilters}
-                  className="gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Clear
-                </Button>
-              )}
+                </DialogContent>
+              </Dialog>
             </div>
+            <div className="p-6 space-y-6 overflow-auto flex-1">
+              {/* Search and Filter */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex-1">
+                  <SearchInput
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-sm bg-white"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                  className="gap-2 text-white bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filter
+                </Button>
+                {(filters.status !== 'all' || searchTerm) && (
+                  <Button
+                    variant="ghost"
+                    onClick={clearFilters}
+                    className="gap-2 text-white bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear
+                  </Button>
+                )}
+              </div>
 
-            {/* User Categories */}
-            <div className="grid gap-6">
-              {/* Pro Users */}
-              <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Crown className="h-5 w-5 text-gold-500" />
-                    <CardTitle>Pro Users</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Listing Limit</TableHead>
-                          <TableHead>Subscription Ends</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {loading ? (
+              {/* User Categories */}
+              <div className="grid gap-6">
+                {/* Pro Users */}
+                <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-5 w-5 text-gold-500" />
+                      <CardTitle className="text-black">Pro Users</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center py-4">
-                              <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                            </TableCell>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Listing Limit</TableHead>
+                            <TableHead>Actions</TableHead>
                           </TableRow>
-                        ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
-                              No pro users found
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          filteredUsers
-                            .filter(user => user.subscription_status === 'pro')
-                            .map((user) => (
-                              <TableRow key={user.id}>
-                                <TableCell>
-                                  {user.first_name} {user.last_name}
-                                </TableCell>
-                                <TableCell>{user.email}</TableCell>
-                                <TableCell>
-                                  <Badge 
-                                    variant={user.status === 'active' ? 'outline' : 'secondary'} 
-                                    className={user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}
-                                  >
-                                    {user.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
-                                <TableCell>{formatDate(user.subscription_end || '')}</TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => openDetailsDialog(user)}
+                        </TableHeader>
+                        <TableBody>
+                          {loading ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-4">
+                                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                              </TableCell>
+                            </TableRow>
+                          ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                                No pro users found
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filteredUsers
+                              .filter(user => user.subscription_status === 'pro')
+                              .map((user) => (
+                                <TableRow key={user.id}>
+                                  <TableCell>
+                                    <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
+                                  </TableCell>
+                                  <TableCell className="truncate max-w-[150px] text-black">{user.email}</TableCell>
+                                  <TableCell>
+                                    <Badge 
+                                      variant={user.status === 'active' ? 'outline' : 'secondary'} 
+                                      className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
                                     >
-                                      Details
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => openEditDialog(user)}
-                                    >
-                                      Edit
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+                                      {user.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                                        onClick={() => openDetailsDialog(user)}
+                                      >
+                                        Details
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                                        onClick={() => openEditDialog(user)}
+                                      >
+                                        Edit
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Free Users */}
-              <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-blue-500" />
-                    <CardTitle>Free Users</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Listing Limit</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {loading ? (
+                {/* Free Users */}
+                <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-blue-500" />
+                      <CardTitle className="text-black">Free Users</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-4">
-                              <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                            </TableCell>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Listing Limit</TableHead>
+                            <TableHead>Actions</TableHead>
                           </TableRow>
-                        ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                              No free users found
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          filteredUsers
-                            .filter(user => user.subscription_status === 'free')
-                            .map((user) => (
-                              <TableRow key={user.id}>
-                                <TableCell>
-                                  {user.first_name} {user.last_name}
-                                </TableCell>
-                                <TableCell>{user.email}</TableCell>
-                                <TableCell>
-                                  <Badge 
-                                    variant={user.status === 'active' ? 'outline' : 'secondary'} 
-                                    className={user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}
-                                  >
-                                    {user.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => openDetailsDialog(user)}
+                        </TableHeader>
+                        <TableBody>
+                          {loading ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-4">
+                                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                              </TableCell>
+                            </TableRow>
+                          ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                                No free users found
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filteredUsers
+                              .filter(user => user.subscription_status === 'free')
+                              .map((user) => (
+                                <TableRow key={user.id}>
+                                  <TableCell>
+                                    <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
+                                  </TableCell>
+                                  <TableCell className="truncate max-w-[150px] text-black">{user.email}</TableCell>
+                                  <TableCell>
+                                    <Badge 
+                                      variant={user.status === 'active' ? 'outline' : 'secondary'} 
+                                      className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
                                     >
-                                      Details
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => openEditDialog(user)}
-                                    >
-                                      Edit
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+                                      {user.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                                        onClick={() => openDetailsDialog(user)}
+                                      >
+                                        Details
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                                        onClick={() => openEditDialog(user)}
+                                      >
+                                        Edit
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </SidebarInset>
-
         {/* User Details Modal */}
         <UserDetailsModal
           open={detailsDialogOpen}
@@ -914,7 +955,6 @@ const AdminUsersPage = () => {
           user={selectedUser}
           onDelete={() => selectedUser && handleDeleteUser(selectedUser.id)}
         />
-
         {/* User Edit Modal */}
         <UserEditModal
           open={editDialogOpen}
@@ -922,6 +962,26 @@ const AdminUsersPage = () => {
           user={selectedUser}
           onUserUpdated={fetchUsers}
         />
+        {/* Success Popup Dialog */}
+        <Dialog open={showDeleteSuccess} onOpenChange={(open) => {
+          setShowDeleteSuccess(open);
+          if (!open) fetchUsers();
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>User Deleted</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 text-center text-lg">The user has been deleted successfully.</div>
+            <DialogFooter>
+              <Button onClick={() => {
+                setShowDeleteSuccess(false);
+                fetchUsers();
+              }}>
+                OK
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </SidebarProvider>
   );

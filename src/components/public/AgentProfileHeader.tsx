@@ -116,7 +116,7 @@ const AgentProfileHeader = ({
               {phoneNumber && (
                 <a 
                   href={`tel:${phoneNumber}`} 
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors font-semibold shadow-md"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] rounded-lg hover:bg-[var(--portal-button-hover)] transition-colors font-semibold shadow-md"
                 >
                   <Phone className="h-4 w-4" />
                   Call
@@ -138,7 +138,7 @@ const AgentProfileHeader = ({
                   href={whatsappLink} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold shadow-md"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] rounded-lg hover:bg-[var(--portal-button-hover)] transition-colors font-semibold shadow-md"
                 >
                   <MessageCircle className="h-4 w-4" />
                   WhatsApp
@@ -150,7 +150,7 @@ const AgentProfileHeader = ({
                   href={telegramLink} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] rounded-lg hover:bg-[var(--portal-button-hover)] transition-colors font-semibold shadow-md"
                 >
                   <Send className="h-4 w-4" />
                   Telegram

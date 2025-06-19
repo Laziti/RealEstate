@@ -17,6 +17,9 @@ export interface Database {
           last_name: string
           career?: string | null
           phone_number?: string | null
+          whatsapp_link?: string | null
+          telegram_link?: string | null
+          avatar_url?: string | null
           listing_limit: {
             type: string
             value: number
@@ -43,6 +46,9 @@ export interface Database {
           last_name: string
           career?: string | null
           phone_number?: string | null
+          whatsapp_link?: string | null
+          telegram_link?: string | null
+          avatar_url?: string | null
           listing_limit?: Json | null
           subscription_status?: 'free' | 'pro'
           subscription_details?: Json | null
@@ -58,6 +64,9 @@ export interface Database {
           last_name?: string
           career?: string | null
           phone_number?: string | null
+          whatsapp_link?: string | null
+          telegram_link?: string | null
+          avatar_url?: string | null
           listing_limit?: Json | null
           subscription_status?: 'free' | 'pro'
           subscription_details?: Json | null

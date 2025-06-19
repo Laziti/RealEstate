@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -64,16 +63,16 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				gold: {
-					50: '#FFF9E5',
-					100: '#FFF2CC',
-					200: '#FFE699',
-					300: '#FFD966',
-					400: '#FFCC33',
-					500: '#FFD700', // Gold
-					600: '#CCAC00',
-					700: '#998100',
-					800: '#665700',
-					900: '#332C00',
+					50: '#FFF0F0',
+					100: '#FFE0E0',
+					200: '#FFC0C0',
+					300: '#FF9F9F',
+					400: '#FF7070',
+					500: '#E50000', // Red
+					600: '#CC0000',
+					700: '#990000',
+					800: '#660000',
+					900: '#330000',
 				}
 			},
 			borderRadius: {
@@ -100,10 +99,10 @@ export default {
 				},
 				'pulse-glow': {
 					'0%, 100%': { 
-						boxShadow: '0 0 10px rgba(255, 215, 0, 0.3)' 
+						boxShadow: '0 0 10px rgba(229, 0, 0, 0.3)' 
 					},
 					'50%': { 
-						boxShadow: '0 0 20px rgba(255, 215, 0, 0.7)' 
+						boxShadow: '0 0 20px rgba(229, 0, 0, 0.7)' 
 					}
 				},
 				'shimmer': {

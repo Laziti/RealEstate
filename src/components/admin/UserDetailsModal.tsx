@@ -164,14 +164,12 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
   };
 
   const renderLimitBadge = (limit?: { type: string; value?: number }) => {
-    if (!limit) return 'Default (5/month)';
-    
+    if (!limit) return <span className="text-red-600 font-semibold">Default (5/month)</span>;
     if (limit.type === 'unlimited') {
-      return <Badge variant="outline" className="bg-blue-50">Unlimited</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-red-600 border-red-200">Unlimited</Badge>;
     }
-    
     return (
-      <Badge variant="outline" className="bg-green-50">
+      <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
         {limit.value}/{limit.type}
       </Badge>
     );
@@ -187,7 +185,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 bg-white text-black">
           <DialogHeader className="px-6 py-4">
             <div className="flex justify-between items-center">
           <DialogTitle>User Details</DialogTitle>
@@ -205,7 +203,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
           <ScrollArea className="flex-1 px-6">
             <div className="space-y-6 py-4">
               {/* User Profile Section */}
-              <div className="bg-card rounded-lg p-4 border">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <h3 className="text-lg font-semibold mb-4">Profile Information</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
@@ -229,11 +227,11 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
                       {user.status}
                     </Badge>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground">Career</h4>
-                    <p>{user.career || 'Not provided'}</p>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-medium text-muted-foreground w-24">Profession</h4>
+                    <p className="truncate">{user.career || 'Not provided'}</p>
                   </div>
-            <div>
+                  <div>
                     <h4 className="text-sm font-medium text-muted-foreground">Member Since</h4>
                     <p>{formatDate(user.created_at)}</p>
                   </div>
@@ -241,7 +239,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
               </div>
 
               {/* Subscription Section */}
-              <div className="bg-card rounded-lg p-4 border">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <h3 className="text-lg font-semibold mb-4">Subscription Details</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
@@ -266,13 +264,14 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
                   <div>
                     <h4 className="text-sm font-medium text-muted-foreground">Total Listings</h4>
                     <p>{user.listing_count}</p>
-            </div>
+                  </div>
+                </div>
               </div>
             </div>
 
               {/* Payment Receipt Section */}
             {user.payment_receipt_url && (
-                <div className="bg-card rounded-lg p-4 border">
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
                   <h3 className="text-lg font-semibold mb-4">Payment Receipt</h3>
                   <div className="space-y-4">
                   <a
@@ -297,7 +296,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
             )}
 
               {/* Listings Section */}
-              <div className="bg-card rounded-lg p-4 border">
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <h3 className="text-lg font-semibold mb-4">Recent Listings</h3>
             {loading ? (
               <div className="flex justify-center py-8">
@@ -309,7 +308,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
                       <div key={listing.id} className="border rounded-lg p-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-medium">{listing.title}</h4>
+                            <h4 className="font-medium text-black">{listing.title}</h4>
                             <p className="text-sm text-muted-foreground">
                               {listing.city ? `${listing.city}${listing.location ? `, ${listing.location}` : ''}` : listing.location || 'No location'}
                             </p>
@@ -344,7 +343,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
                           </div>
                         </div>
                         {listing.description && (
-                          <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                          <p className="mt-2 text-sm text-gray-700 line-clamp-2">
                             {listing.description}
                           </p>
                         )}
@@ -361,38 +360,37 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
                     ))}
               </div>
             ) : (
-                  <p className="text-muted-foreground text-center py-8">No listings found</p>
+                  <p className="text-gray-700 text-center py-8">No listings found</p>
             )}
           </div>
-        </div>
-          </ScrollArea>
+        </ScrollArea>
 
-          <DialogFooter className="px-6 py-4 border-t">
+        <DialogFooter className="px-6 py-4 border-t">
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the user
-              account and all associated data.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the user
+            account and all associated data.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 };

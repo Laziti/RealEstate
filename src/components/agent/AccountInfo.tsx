@@ -492,7 +492,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                 
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-bold">
+                    <h3 className="text-xl font-bold text-black">
                     {profile.first_name} {profile.last_name}
                   </h3>
                     {profile.subscription_status === 'pro' && (
@@ -614,7 +614,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                     {copied ? <Check className="h-4 w-4 text-green-500" /> : <Clipboard className="h-4 w-4" />}
                     </Button>
                 </div>
-                <Button variant="outline" className="w-full" asChild>
+                <Button variant="outline" className="w-full bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)] border-none" asChild>
                   <Link to={getPublicProfileUrl()} target="_blank">
                     <ExternalLink className="h-4 w-4 mr-2" />
                     View Public Profile
@@ -666,7 +666,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                     />
                   </div>
                 </div>
-                <Button onClick={handleProfileSave} disabled={isSaving} className="w-full bg-gold-500 hover:bg-gold-600 text-black">
+                <Button onClick={handleProfileSave} disabled={isSaving} className="w-full bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-[var(--portal-button-text)] mb-0 sm:mb-24">
                   {isSaving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />

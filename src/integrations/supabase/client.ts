@@ -2,10 +2,28 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 
+// Temporarily hardcoded values - replace these with your actual Supabase URL and anon key
+// In production, these should come from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Check if environment variables are set
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Supabase URL and Anon Key are required. Please set the VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
+  
+  // Display a more helpful error in the console
+  console.log('\n-----------------------------------');
+  console.log('Environment Variables Missing');
+  console.log('-----------------------------------');
+  console.log('This application requires Supabase credentials to run.');
+  console.log('Please check ENV-SETUP.md for instructions on setting up your environment variables.');
+  console.log('-----------------------------------\n');
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(
+  supabaseUrl, 
+  supabaseAnonKey
+);

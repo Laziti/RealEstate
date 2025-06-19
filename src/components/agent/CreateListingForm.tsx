@@ -311,7 +311,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
 
   return (
     <>
-      <div className="bg-[var(--portal-card-bg)] rounded-lg shadow-md border border-[var(--portal-border)]">
+      <div className="bg-[var(--portal-card-bg)] rounded-lg shadow-md border border-[var(--portal-border)] pb-28 md:pb-0">
         <div className="border-b border-[var(--portal-border)] p-6 bg-gradient-to-r from-[var(--portal-bg)] to-[var(--portal-card-bg)]">
           <h2 className="text-2xl font-semibold text-[var(--portal-text)]">Create New Listing</h2>
           <p className="text-[var(--portal-text-secondary)] mt-1">Fill out the form to create a new property listing</p>
@@ -363,6 +363,74 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
             <div className={currentStep === 2 ? 'text-gold-500 font-medium' : ''}>Property Images</div>
           </div>
         </div>
+
+        {currentStep === 2 && (
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
+              Main Image <span className="text-red-500">*</span>
+            </label>
+            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-[var(--portal-border)] rounded-lg bg-[var(--portal-bg)]/40">
+              <div className="space-y-1 text-center">
+                {mainImagePreview ? (
+                  <div className="relative">
+                    <img 
+                      src={mainImagePreview} 
+                      alt="Property preview" 
+                      className="mx-auto h-56 object-cover rounded-md shadow-sm" 
+                    />
+                    <button
+                      type="button"
+                      onClick={removeMainImage}
+                      className="absolute top-2 right-2 p-1.5 bg-[var(--portal-button-bg)] text-white rounded-full hover:bg-[var(--portal-button-hover)] transition-colors shadow-md"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <svg
+                      className="mx-auto h-16 w-16 text-[var(--portal-text-secondary)]"
+                      stroke="currentColor"
+                      fill="none"
+                      viewBox="0 0 48 48"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mt-4">
+                      <label
+                        htmlFor="main-image-upload"
+                        className="relative cursor-pointer bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-[var(--portal-button-text)] font-medium rounded-md px-4 py-2 transition-colors focus-within:outline-none inline-flex items-center"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        <span>Upload main image</span>
+                        <input
+                          id="main-image-upload"
+                          name="main-image-upload"
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          onChange={handleMainImageChange}
+                          required={!mainImage}
+                          autoComplete="off"
+                        />
+                      </label>
+                      <p className="text-sm text-[var(--portal-text-secondary)]">or drag and drop</p>
+                    </div>
+                    <p className="text-xs text-[var(--portal-text-secondary)] mt-2">
+                      PNG, JPG, GIF up to 5MB
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <form
           onSubmit={(e) => e.preventDefault()} // Always prevent default form submission
@@ -564,71 +632,6 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="mb-8">
-                  <label className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                    Main Image <span className="text-red-500">*</span>
-                  </label>
-                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-[var(--portal-border)] rounded-lg bg-[var(--portal-bg)]/40">
-                    <div className="space-y-1 text-center">
-                      {mainImagePreview ? (
-                        <div className="relative">
-                          <img 
-                            src={mainImagePreview} 
-                            alt="Property preview" 
-                            className="mx-auto h-56 object-cover rounded-md shadow-sm" 
-                          />
-                          <button
-                            type="button"
-                            onClick={removeMainImage}
-                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <svg
-                            className="mx-auto h-16 w-16 text-[var(--portal-text-secondary)]"
-                            stroke="currentColor"
-                            fill="none"
-                            viewBox="0 0 48 48"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mt-4">
-                            <label
-                              htmlFor="main-image-upload"
-                              className="relative cursor-pointer bg-gold-500 hover:bg-gold-600 text-black font-medium rounded-md px-4 py-2 transition-colors focus-within:outline-none inline-flex items-center"
-                            >
-                              <Upload className="h-4 w-4 mr-2" />
-                              <span>Upload main image</span>
-                              <input
-                                id="main-image-upload"
-                                name="main-image-upload"
-                                type="file"
-                                accept="image/*"
-                                className="sr-only"
-                                onChange={handleMainImageChange}
-                                required={!mainImage}
-                              />
-                            </label>
-                            <p className="text-sm text-[var(--portal-text-secondary)]">or drag and drop</p>
-                          </div>
-                          <p className="text-xs text-[var(--portal-text-secondary)] mt-2">
-                            PNG, JPG, GIF up to 5MB
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
                     Additional Images (Optional)
@@ -645,7 +648,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                         <button
                           type="button"
                           onClick={() => removeAdditionalImage(index)}
-                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md"
+                          className="absolute top-2 right-2 p-1.5 bg-[var(--portal-button-bg)] text-white rounded-full hover:bg-[var(--portal-button-hover)] transition-colors shadow-md"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -655,18 +658,20 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     {/* Add more images button */}
                     {additionalImages.length < 5 && (
                       <label
+                        key={`additional-image-upload-step-${currentStep}-${additionalImages.length}`}
                         htmlFor="additional-image-upload"
                         className="h-36 border-2 border-dashed border-[var(--portal-border)] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-[var(--portal-bg-hover)] transition-colors bg-[var(--portal-bg)]/40"
                       >
                         <Plus className="h-8 w-8 text-gold-500" />
                         <span className="text-sm text-[var(--portal-text-secondary)] mt-2 font-medium">Add Image</span>
-                        <input 
+                        <input
                           id="additional-image-upload"
-                          type="file" 
-                          accept="image/*" 
+                          type="file"
+                          accept="image/*"
                           multiple
                           className="sr-only"
                           onChange={handleAdditionalImagesChange}
+                          autoComplete="off"
                         />
                       </label>
                     )}
@@ -695,7 +700,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
               <Button
                 type="button"
                 onClick={handleNextStep}
-                className="ml-auto px-8 py-3 bg-gold-500 hover:bg-gold-600 text-black font-medium rounded-lg"
+                className="ml-auto px-8 py-3 bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-white font-medium rounded-lg"
               >
                 Continue
               </Button>
@@ -704,7 +709,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                 type="button" // Always type="button" to prevent default form submission
                 disabled={isSubmitting}
                 onClick={form.handleSubmit(onSubmit)} // Directly call handleSubmit here
-                className="ml-auto px-8 py-3 bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-700 hover:to-gold-600 active:from-gold-800 active:to-gold-700 text-black font-medium rounded-lg shadow-md transition-all flex items-center justify-center text-base"
+                className="ml-auto px-8 py-3 bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-white rounded-lg px-6 py-2 text-lg transition"
               >
                 {isSubmitting ? (
                   <> 
@@ -774,7 +779,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     <motion.button
                       whileHover={{ scale: 1.08 }}
                       whileTap={{ scale: 0.96 }}
-                      className="bg-gold-500 hover:bg-gold-600 text-black font-semibold rounded-lg px-6 py-2 text-lg shadow-md transition"
+                      className="bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-white font-semibold rounded-lg px-6 py-2 text-lg shadow-md transition"
                       onClick={() => {
                         if (listingPublicUrl) {
                           navigate(listingPublicUrl);
@@ -786,7 +791,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                     <motion.button
                       whileHover={{ scale: 1.08 }}
                       whileTap={{ scale: 0.96 }}
-                      className="bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-6 py-2 text-lg transition"
+                      className="bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-white rounded-lg px-6 py-2 text-lg transition"
                       onClick={() => { setShowSuccessPopup(false); onSuccess(); }}
                     >
                       Close

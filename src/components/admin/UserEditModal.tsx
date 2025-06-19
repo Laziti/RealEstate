@@ -132,7 +132,7 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0">
+      <DialogContent className="max-w-3xl h-[90vh] flex flex-col p-0 bg-white text-black">
         <DialogHeader className="px-6 py-4">
           <DialogTitle>Edit User</DialogTitle>
         </DialogHeader>

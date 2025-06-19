@@ -189,7 +189,7 @@ const AdminListingsPage = () => {
     }
     
     return (
-      <span className={`px-2 py-1 rounded text-xs ${bgColor}`}>
+      <span className={`px-2 py-1 rounded text-xs ${bgColor} ${status === 'pending' ? 'text-red-600' : 'text-black'}`}>
         {status || 'pending'}
       </span>
     );
@@ -204,177 +204,179 @@ const AdminListingsPage = () => {
     <SidebarProvider>
       <div className="flex min-h-screen">
         <AdminSidebar />
-        <div className="flex-1 p-6">
-          <h1 className="text-2xl font-semibold mb-6">Property Listings</h1>
-          
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Search listings..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="flex items-center gap-1"
-                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                >
-                  <Filter className="h-4 w-4" />
-                  <span>Filter</span>
-                </Button>
-                
-                {filterMenuOpen && (
-                  <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    <div className="p-2">
-                      <div className="px-2 py-1 text-sm font-semibold">Status</div>
-                      <button 
-                        className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
-                          ${filters.status === 'all' ? 'bg-gray-100 font-medium' : ''}`}
-                        onClick={() => handleFilterChange('all')}
-                      >
-                        All
-                      </button>
-                      <button 
-                        className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
-                          ${filters.status === 'active' ? 'bg-gray-100 font-medium' : ''}`}
-                        onClick={() => handleFilterChange('active')}
-                      >
-                        Active
-                      </button>
-                      <button 
-                        className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
-                          ${filters.status === 'hidden' ? 'bg-gray-100 font-medium' : ''}`}
-                        onClick={() => handleFilterChange('hidden')}
-                      >
-                        Hidden
-                      </button>
-                      <button 
-                        className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
-                          ${filters.status === 'pending' ? 'bg-gray-100 font-medium' : ''}`}
-                        onClick={() => handleFilterChange('pending')}
-                      >
-                        Pending
-                      </button>
-                    </div>
-                  </div>
-                )}
+        <div className="bg-white min-h-screen flex flex-col flex-1">
+          <div className="p-6 flex-1">
+            <h1 className="text-2xl font-semibold mb-6 text-black">Property Listings</h1>
+            
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Search listings..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-white"
+                />
               </div>
-              
-              {(searchTerm || filters.status !== 'all') && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={clearFilters}
-                  className="flex items-center gap-1"
-                >
-                  <X className="h-4 w-4" /> Clear
-                </Button>
-              )}
-              
-              <Button onClick={fetchListings} size="sm" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading
-                  </>
-                ) : (
-                  'Refresh'
-                )}
-              </Button>
-            </div>
-          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>All Listings</CardTitle>
-              <CardDescription>
-                Manage all property listings across the platform
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                  >
+                    <Filter className="h-4 w-4" />
+                    <span>Filter</span>
+                  </Button>
+                  
+                  {filterMenuOpen && (
+                    <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      <div className="p-2">
+                        <div className="px-2 py-1 text-sm font-semibold">Status</div>
+                        <button 
+                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
+                            ${filters.status === 'all' ? 'bg-gray-100 font-medium' : ''}`}
+                          onClick={() => handleFilterChange('all')}
+                        >
+                          All
+                        </button>
+                        <button 
+                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
+                            ${filters.status === 'active' ? 'bg-gray-100 font-medium' : ''}`}
+                          onClick={() => handleFilterChange('active')}
+                        >
+                          Active
+                        </button>
+                        <button 
+                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
+                            ${filters.status === 'hidden' ? 'bg-gray-100 font-medium' : ''}`}
+                          onClick={() => handleFilterChange('hidden')}
+                        >
+                          Hidden
+                        </button>
+                        <button 
+                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
+                            ${filters.status === 'pending' ? 'bg-gray-100 font-medium' : ''}`}
+                          onClick={() => handleFilterChange('pending')}
+                        >
+                          Pending
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : filteredListings.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No listings found</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Listing</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Owner</TableHead>
-                      <TableHead>Phone Number</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredListings.map(listing => (
-                      <TableRow key={listing.id}>
-                        <TableCell>
-                          <div className="flex items-center">
-                            {listing.main_image_url ? (
-                              <img 
-                                src={listing.main_image_url} 
-                                alt={listing.title}
-                                className="w-10 h-10 object-cover rounded-md mr-3"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 bg-gray-200 rounded-md mr-3 flex items-center justify-center text-gray-400">
-                                No img
-                              </div>
-                            )}
-                            <span className="truncate max-w-[150px]">{listing.title}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{listing.price ? formatCurrency(listing.price) : 'N/A'}</TableCell>
-                        <TableCell className="truncate max-w-[150px]">{listing.location || 'N/A'}</TableCell>
-                        <TableCell>{getUserName(listing.user_id)}</TableCell>
-                        <TableCell>{listing.phone_number || 'N/A'}</TableCell>
-                        <TableCell>{getStatusBadge(listing.status)}</TableCell>
-                        <TableCell>{format(new Date(listing.created_at), 'MMM d, yyyy')}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openDetailsModal(listing)}
-                            className="ml-auto flex items-center gap-1"
-                          >
-                            <Eye className="h-4 w-4" />
-                            <span>View</span>
-                          </Button>
-                        </TableCell>
+                
+                {(searchTerm || filters.status !== 'all') && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={clearFilters}
+                    className="flex items-center gap-1"
+                  >
+                    <X className="h-4 w-4" /> Clear
+                  </Button>
+                )}
+                
+                <Button onClick={fetchListings} size="sm" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Loading
+                    </>
+                  ) : (
+                    'Refresh'
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <Card className="bg-white">
+              <CardHeader>
+                <CardTitle className="bg-white text-black">All Listings</CardTitle>
+                <CardDescription className="text-gray-700">
+                  Manage all property listings across the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                  </div>
+                ) : filteredListings.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-700">No listings found</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Listing</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>Phone Number</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredListings.map(listing => (
+                        <TableRow key={listing.id}>
+                          <TableCell>
+                            <div className="flex items-center">
+                              {listing.main_image_url ? (
+                                <img 
+                                  src={listing.main_image_url} 
+                                  alt={listing.title}
+                                  className="w-10 h-10 object-cover rounded-md mr-3"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-gray-200 rounded-md mr-3 flex items-center justify-center text-gray-400">
+                                  No img
+                                </div>
+                              )}
+                              <span className="truncate max-w-[150px] text-black">{listing.title}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{listing.price ? formatCurrency(listing.price) : 'N/A'}</TableCell>
+                          <TableCell className="truncate max-w-[150px] text-black">{listing.location || 'N/A'}</TableCell>
+                          <TableCell className="text-black">{getUserName(listing.user_id)}</TableCell>
+                          <TableCell className="text-black">{listing.phone_number || 'N/A'}</TableCell>
+                          <TableCell>{getStatusBadge(listing.status)}</TableCell>
+                          <TableCell>{format(new Date(listing.created_at), 'MMM d, yyyy')}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => openDetailsModal(listing)}
+                              className="ml-auto flex items-center gap-1 bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90 border-0"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span>View</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Listing Details Modal */}
+          {selectedListing && (
+            <ListingDetailsModal
+              listing={selectedListing}
+              open={detailsModalOpen}
+              onOpenChange={setDetailsModalOpen}
+              onStatusChange={fetchListings}
+            />
+          )}
         </div>
-        
-        {/* Listing Details Modal */}
-        {selectedListing && (
-          <ListingDetailsModal
-            listing={selectedListing}
-            open={detailsModalOpen}
-            onOpenChange={setDetailsModalOpen}
-            onStatusChange={fetchListings}
-          />
-        )}
       </div>
     </SidebarProvider>
   );
