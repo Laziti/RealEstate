@@ -228,17 +228,24 @@ const AuthHero: React.FC = () => {
   const buttonBaseClasses = "w-full bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-[var(--portal-button-text)] font-semibold p-3 rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--portal-accent)] focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 transform";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[var(--portal-bg)] to-[var(--portal-card-bg)] text-[var(--portal-text)] flex items-center justify-center py-8">
+    <div className="relative min-h-screen flex items-center justify-center py-8 overflow-hidden">
+      {/* Hero Background Image - no effects */}
+      <img
+        src="/HeroBG.jpg"
+        alt="Hero Background"
+        className="absolute inset-0 w-full h-full object-cover z-0"
+        style={{ pointerEvents: 'none', userSelect: 'none' }}
+      />
       {/* Main Content */}
-      <div className="container mx-auto px-6 relative z-10 flex flex-col lg:flex-row items-center">
+      <div className="container mx-auto px-6 relative z-10 flex flex-col lg:flex-row items-start">
         {/* Left side - Hero Text */}
-        <div className="w-full lg:w-1/2 lg:pr-12 mb-10 lg:mb-0">
+        <div className="w-full lg:w-1/2 lg:pr-12 mt-0 lg:mt-0">
           <div className="flex justify-center lg:justify-start mb-0">
             <img src="/LogoIcon.svg" alt="Company Logo" className="h-40 md:h-48 lg:h-48 transform hover:scale-105 transition-transform duration-300" />
           </div>
           
           <motion.h1 
-            className="-mt-6 text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-center lg:text-left"
+            className="-mt-6 text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-center lg:text-left text-black"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -248,35 +255,13 @@ const AuthHero: React.FC = () => {
           </motion.h1>
           
           <motion.p 
-            className="text-xl md:text-2xl text-[var(--portal-text-secondary)] mb-10 text-center lg:text-left"
+            className="text-xl md:text-2xl text-black mt-2 text-center lg:text-left"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
             Create listings under your name and share with clients.
           </motion.p>
-          
-          <motion.div 
-            className="flex flex-wrap justify-center lg:justify-start gap-3 text-[var(--portal-text-secondary)]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            <div className="flex items-center px-4 py-1.5 rounded-full bg-[var(--portal-accent)]/5 border border-[var(--portal-accent)]/10">
-              <LinkIcon className="h-3.5 w-3.5 text-[var(--portal-accent)] mr-2" />
-              <span className="font-medium text-sm">Agent Link</span>
-            </div>
-            
-            <div className="flex items-center px-4 py-1.5 rounded-full bg-[var(--portal-accent)]/5 border border-[var(--portal-accent)]/10">
-              <Home className="h-3.5 w-3.5 text-[var(--portal-accent)] mr-2" />
-              <span className="font-medium text-sm">100 Listings</span>
-            </div>
-            
-            <div className="flex items-center px-4 py-1.5 rounded-full bg-[var(--portal-accent)]/5 border border-[var(--portal-accent)]/10">
-              <DollarSign className="h-3.5 w-3.5 text-[var(--portal-accent)] mr-2" />
-              <span className="font-medium text-sm">5000 ETB/6mo</span>
-            </div>
-          </motion.div>
         </div>
 
         {/* Right side - Auth Form */}
