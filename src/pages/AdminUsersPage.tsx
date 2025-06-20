@@ -594,394 +594,378 @@ const AdminUsersPage = () => {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full">
-        <AdminSidebar />
-        <SidebarInset>
-          <div className="bg-white min-h-screen flex flex-col">
-            <div className="flex items-center justify-between border-b p-4">
-              <div className="flex items-center">
-                <SidebarTrigger />
-                <h1 className="ml-4 text-xl font-semibold text-black">User Management</h1>
+      <div className="min-h-screen w-full md:pl-72">
+        <div className="flex h-screen w-full">
+          <AdminSidebar />
+          <SidebarInset>
+            <div className="bg-white min-h-screen flex flex-col">
+              <div className="flex items-center justify-between border-b p-4">
+                <div className="flex items-center">
+                  <SidebarTrigger />
+                  <h1 className="ml-4 text-xl font-semibold text-black">User Management</h1>
+                </div>
               </div>
-              <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Create User
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl bg-white">
-                  <DialogHeader>
-                    <DialogTitle className="text-black">Create New User</DialogTitle>
-                    <DialogDescription className="text-gray-500">
-                      Create a new agent account with subscription details.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="first_name" className="text-black">First Name</Label>
-                        <Input
-                          id="first_name"
-                          value={newUser.first_name}
-                          onChange={(e) => setNewUser(prev => ({ ...prev, first_name: e.target.value }))}
-                          className="bg-white text-black"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="last_name" className="text-black">Last Name</Label>
-                        <Input
-                          id="last_name"
-                          value={newUser.last_name}
-                          onChange={(e) => setNewUser(prev => ({ ...prev, last_name: e.target.value }))}
-                          className="bg-white text-black"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-black">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={newUser.email}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                        className="bg-white text-black"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-black">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={newUser.password}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                        className="bg-white text-black"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="subscription" className="text-black">Subscription Type</Label>
-                        <Select
-                          value={newUser.subscription_status}
-                          onValueChange={(value: 'free' | 'pro') => setNewUser(prev => ({ ...prev, subscription_status: value }))}
-                        >
-                          <SelectTrigger className="bg-white text-black">
-                            <SelectValue placeholder="Select subscription type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="free">Free</SelectItem>
-                            <SelectItem value="pro">Pro</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {newUser.subscription_status === 'pro' && (
-                        <div className="space-y-2">
-                          <Label htmlFor="duration" className="text-black">Subscription Duration</Label>
-                          <Select
-                            value={newUser.subscription_duration}
-                            onValueChange={(value: 'monthly' | '6months' | 'yearly') => setNewUser(prev => ({ ...prev, subscription_duration: value }))}
-                          >
-                            <SelectTrigger className="bg-white text-black">
-                              <SelectValue placeholder="Select duration" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="monthly">1 Month</SelectItem>
-                              <SelectItem value="6months">6 Months</SelectItem>
-                              <SelectItem value="yearly">1 Year</SelectItem>
-                            </SelectContent>
-                          </Select>
+              <div className="p-6 space-y-6 overflow-auto flex-1">
+                {/* Search and Filter */}
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="flex-1">
+                    <SearchInput
+                      placeholder="Search users..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-sm bg-white"
+                    />
+                  </div>
+                  <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-red-600 hover:bg-red-700 text-white">
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Create User
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl bg-white">
+                      <DialogHeader>
+                        <DialogTitle className="text-black">Create New User</DialogTitle>
+                        <DialogDescription className="text-black">
+                          Create a new agent account with subscription details.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="first_name" className="text-black">First Name</Label>
+                            <Input
+                              id="first_name"
+                              value={newUser.first_name}
+                              onChange={(e) => setNewUser(prev => ({ ...prev, first_name: e.target.value }))}
+                              className="bg-white text-black focus:border-red-600"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="last_name" className="text-black">Last Name</Label>
+                            <Input
+                              id="last_name"
+                              value={newUser.last_name}
+                              onChange={(e) => setNewUser(prev => ({ ...prev, last_name: e.target.value }))}
+                              className="bg-white text-black focus:border-red-600"
+                            />
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="limit_type" className="text-black">Listing Limit Type</Label>
-                        <Select
-                          value={newUser.listing_limit.type}
-                          onValueChange={(value: 'day' | 'week' | 'month' | 'year' | 'unlimited') => 
-                            setNewUser(prev => ({
-                              ...prev,
-                              listing_limit: {
-                                ...prev.listing_limit,
-                                type: value,
-                                value: value === 'unlimited' ? undefined : (prev.listing_limit.value || 5)
-                              }
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="bg-white text-black">
-                            <SelectValue placeholder="Select limit type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="day">Per Day</SelectItem>
-                            <SelectItem value="week">Per Week</SelectItem>
-                            <SelectItem value="month">Per Month</SelectItem>
-                            <SelectItem value="year">Per Year</SelectItem>
-                            <SelectItem value="unlimited">Unlimited</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {newUser.listing_limit.type !== 'unlimited' && (
                         <div className="space-y-2">
-                          <Label htmlFor="limit_value" className="text-black">Listing Limit Value</Label>
+                          <Label htmlFor="email" className="text-black">Email</Label>
                           <Input
-                            id="limit_value"
-                            type="number"
-                            min="1"
-                            value={newUser.listing_limit.value}
-                            onChange={(e) => setNewUser(prev => ({
-                              ...prev,
-                              listing_limit: {
-                                ...prev.listing_limit,
-                                value: parseInt(e.target.value) || 5
-                              }
-                            }))}
-                            className="bg-white text-black"
+                            id="email"
+                            type="email"
+                            value={newUser.email}
+                            onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                            className="bg-white text-black focus:border-red-600"
                           />
                         </div>
-                      )}
-                    </div>
-                    <Button 
-                      className="w-full mt-4 bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white" 
-                      onClick={handleCreateUser}
-                      disabled={!newUser.email || !newUser.password || !newUser.first_name || !newUser.last_name}
-                    >
-                      Create User
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-            <div className="p-6 space-y-6 overflow-auto flex-1">
-              {/* Search and Filter */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex-1">
-                  <SearchInput
-                    placeholder="Search users..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                      className="max-w-sm bg-white"
-                  />
+                        <div className="space-y-2">
+                          <Label htmlFor="password" className="text-black">Password</Label>
+                          <Input
+                            id="password"
+                            type="password"
+                            value={newUser.password}
+                            onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                            className="bg-white text-black focus:border-red-600"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="subscription" className="text-black">Subscription Type</Label>
+                            <Select
+                              value={newUser.subscription_status}
+                              onValueChange={(value: 'free' | 'pro') => setNewUser(prev => ({ ...prev, subscription_status: value }))}
+                            >
+                              <SelectTrigger className="bg-white text-black focus:border-red-600">
+                                <SelectValue placeholder="Select subscription type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="free">Free</SelectItem>
+                                <SelectItem value="pro">Pro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {newUser.subscription_status === 'pro' && (
+                            <div className="space-y-2">
+                              <Label htmlFor="duration" className="text-black">Subscription Duration</Label>
+                              <Select
+                                value={newUser.subscription_duration}
+                                onValueChange={(value: 'monthly' | '6months' | 'yearly') => setNewUser(prev => ({ ...prev, subscription_duration: value }))}
+                              >
+                                <SelectTrigger className="bg-white text-black focus:border-red-600">
+                                  <SelectValue placeholder="Select duration" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="monthly">1 Month</SelectItem>
+                                  <SelectItem value="6months">6 Months</SelectItem>
+                                  <SelectItem value="yearly">1 Year</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="limit_type" className="text-black">Listing Limit Type</Label>
+                            <Select
+                              value={newUser.listing_limit.type}
+                              onValueChange={(value: 'day' | 'week' | 'month' | 'year' | 'unlimited') => 
+                                setNewUser(prev => ({
+                                  ...prev,
+                                  listing_limit: {
+                                    ...prev.listing_limit,
+                                    type: value,
+                                    value: value === 'unlimited' ? undefined : (prev.listing_limit.value || 5)
+                                  }
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="bg-white text-black focus:border-red-600">
+                                <SelectValue placeholder="Select limit type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="day">Per Day</SelectItem>
+                                <SelectItem value="week">Per Week</SelectItem>
+                                <SelectItem value="month">Per Month</SelectItem>
+                                <SelectItem value="year">Per Year</SelectItem>
+                                <SelectItem value="unlimited">Unlimited</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {newUser.listing_limit.type !== 'unlimited' && (
+                            <div className="space-y-2">
+                              <Label htmlFor="limit_value" className="text-black">Listing Limit Value</Label>
+                              <Input
+                                id="limit_value"
+                                type="number"
+                                min="1"
+                                value={newUser.listing_limit.value}
+                                onChange={(e) => setNewUser(prev => ({
+                                  ...prev,
+                                  listing_limit: {
+                                    ...prev.listing_limit,
+                                    value: parseInt(e.target.value) || 5
+                                  }
+                                }))}
+                                className="bg-white text-black focus:border-red-600"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <Button 
+                          className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white" 
+                          onClick={handleCreateUser}
+                          disabled={!newUser.email || !newUser.password || !newUser.first_name || !newUser.last_name}
+                        >
+                          Create User
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                  className="gap-2 text-white bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                >
-                  <Filter className="h-4 w-4" />
-                  Filter
-                </Button>
-                {(filters.status !== 'all' || searchTerm) && (
-                  <Button
-                    variant="ghost"
-                    onClick={clearFilters}
-                    className="gap-2 text-white bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                  >
-                    <X className="h-4 w-4" />
-                    Clear
-                  </Button>
-                )}
-              </div>
 
-              {/* User Categories */}
-              <div className="grid gap-6">
-                {/* Pro Users */}
-                <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Crown className="h-5 w-5 text-gold-500" />
-                      <CardTitle className="text-black">Pro Users</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Listing Limit</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {loading ? (
+                {/* User Categories */}
+                <div className="grid gap-6">
+                  {/* Pro Users */}
+                  <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Crown className="h-5 w-5 text-gold-500" />
+                        <CardTitle className="text-black">Pro Users</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center py-4">
-                                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                              </TableCell>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Listing Limit</TableHead>
+                              <TableHead>Actions</TableHead>
                             </TableRow>
-                          ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
-                                No pro users found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            filteredUsers
-                              .filter(user => user.subscription_status === 'pro')
-                              .map((user) => (
-                                <TableRow key={user.id}>
-                                  <TableCell>
-                                    <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
-                                  </TableCell>
-                                  <TableCell className="truncate max-w-[150px] text-black">{user.email}</TableCell>
-                                  <TableCell>
-                                    <Badge 
-                                      variant={user.status === 'active' ? 'outline' : 'secondary'} 
-                                      className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
-                                    >
-                                      {user.status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                                        onClick={() => openDetailsDialog(user)}
+                          </TableHeader>
+                          <TableBody>
+                            {loading ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-4">
+                                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                                </TableCell>
+                              </TableRow>
+                            ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                                  No pro users found
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredUsers
+                                .filter(user => user.subscription_status === 'pro')
+                                .map((user) => (
+                                  <TableRow key={user.id}>
+                                    <TableCell>
+                                      <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
+                                    </TableCell>
+                                    <TableCell className="truncate max-w-[150px] text-black">{user.email}</TableCell>
+                                    <TableCell>
+                                      <Badge 
+                                        variant={user.status === 'active' ? 'outline' : 'secondary'} 
+                                        className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
                                       >
-                                        Details
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                                        onClick={() => openEditDialog(user)}
-                                      >
-                                        Edit
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                                        {user.status}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                                          onClick={() => openDetailsDialog(user)}
+                                        >
+                                          Details
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                                          onClick={() => openEditDialog(user)}
+                                        >
+                                          Edit
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                {/* Free Users */}
-                <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-blue-500" />
-                      <CardTitle className="text-black">Free Users</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Listing Limit</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {loading ? (
+                  {/* Free Users */}
+                  <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-blue-500" />
+                        <CardTitle className="text-black">Free Users</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center py-4">
-                                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                              </TableCell>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Listing Limit</TableHead>
+                              <TableHead>Actions</TableHead>
                             </TableRow>
-                          ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                                No free users found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            filteredUsers
-                              .filter(user => user.subscription_status === 'free')
-                              .map((user) => (
-                                <TableRow key={user.id}>
-                                  <TableCell>
-                                    <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
-                                  </TableCell>
-                                  <TableCell className="truncate max-w-[150px] text-black">{user.email}</TableCell>
-                                  <TableCell>
-                                    <Badge 
-                                      variant={user.status === 'active' ? 'outline' : 'secondary'} 
-                                      className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
-                                    >
-                                      {user.status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                                        onClick={() => openDetailsDialog(user)}
+                          </TableHeader>
+                          <TableBody>
+                            {loading ? (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center py-4">
+                                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                                </TableCell>
+                              </TableRow>
+                            ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                                  No free users found
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredUsers
+                                .filter(user => user.subscription_status === 'free')
+                                .map((user) => (
+                                  <TableRow key={user.id}>
+                                    <TableCell>
+                                      <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
+                                    </TableCell>
+                                    <TableCell className="truncate max-w-[150px] text-black">{user.email}</TableCell>
+                                    <TableCell>
+                                      <Badge 
+                                        variant={user.status === 'active' ? 'outline' : 'secondary'} 
+                                        className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
                                       >
-                                        Details
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                                        onClick={() => openEditDialog(user)}
-                                      >
-                                        Edit
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                                        {user.status}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                                          onClick={() => openDetailsDialog(user)}
+                                        >
+                                          Details
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
+                                          onClick={() => openEditDialog(user)}
+                                        >
+                                          Edit
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </div>
-          </div>
-        </SidebarInset>
-        {/* User Details Modal */}
-        <UserDetailsModal
-          open={detailsDialogOpen}
-          onOpenChange={setDetailsDialogOpen}
-          user={selectedUser}
-          onDelete={() => selectedUser && handleDeleteUser(selectedUser.id)}
-        />
-        {/* User Edit Modal */}
-        <UserEditModal
-          open={editDialogOpen}
-          onOpenChange={setEditDialogOpen}
-          user={selectedUser}
-          onUserUpdated={fetchUsers}
-        />
-        {/* Success Popup Dialog */}
-        <Dialog open={showDeleteSuccess} onOpenChange={(open) => {
-          setShowDeleteSuccess(open);
-          if (!open) fetchUsers();
-        }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>User Deleted</DialogTitle>
-            </DialogHeader>
-            <div className="py-4 text-center text-lg">The user has been deleted successfully.</div>
-            <DialogFooter>
-              <Button onClick={() => {
-                setShowDeleteSuccess(false);
-                fetchUsers();
-              }}>
-                OK
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </SidebarInset>
+          {/* User Details Modal */}
+          <UserDetailsModal
+            open={detailsDialogOpen}
+            onOpenChange={setDetailsDialogOpen}
+            user={selectedUser}
+            onDelete={() => selectedUser && handleDeleteUser(selectedUser.id)}
+          />
+          {/* User Edit Modal */}
+          <UserEditModal
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            user={selectedUser}
+            onUserUpdated={fetchUsers}
+          />
+          {/* Success Popup Dialog */}
+          <Dialog open={showDeleteSuccess} onOpenChange={(open) => {
+            setShowDeleteSuccess(open);
+            if (!open) fetchUsers();
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>User Deleted</DialogTitle>
+              </DialogHeader>
+              <div className="py-4 text-center text-lg">The user has been deleted successfully.</div>
+              <DialogFooter>
+                <Button onClick={() => {
+                  setShowDeleteSuccess(false);
+                  fetchUsers();
+                }}>
+                  OK
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </SidebarProvider>
   );

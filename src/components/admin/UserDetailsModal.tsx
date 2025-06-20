@@ -187,18 +187,19 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
     <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 bg-white text-black">
           <DialogHeader className="px-6 py-4">
-            <div className="flex justify-between items-center">
-          <DialogTitle>User Details</DialogTitle>
-              <Button 
-                variant="destructive" 
-                size="sm"
+            <DialogTitle>User Details</DialogTitle>
+            <div className="mt-4 mb-2 flex w-full">
+              <Button
+                variant="destructive"
+                size="lg"
+                className="w-full md:w-auto md:ml-auto"
                 onClick={() => setDeleteDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete User
               </Button>
             </div>
-        </DialogHeader>
+          </DialogHeader>
 
           <ScrollArea className="flex-1 px-6">
             <div className="space-y-6 py-4">

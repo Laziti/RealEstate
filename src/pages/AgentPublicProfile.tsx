@@ -58,6 +58,20 @@ const AgentPublicProfile = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
 
+  const progressStatusLabels: Record<string, string> = {
+    excavation: 'Excavation',
+    on_progress: 'On Progress',
+    semi_finished: 'Semi-finished',
+    fully_finished: 'Fully Finished',
+  };
+  const priceRanges = [
+    { id: 'lt1m', label: '< 1M ETB', min: 0, max: 1_000_000 },
+    { id: '1m-3m', label: '1M - 3M ETB', min: 1_000_000, max: 3_000_000 },
+    { id: '3m-5m', label: '3M - 5M ETB', min: 3_000_000, max: 5_000_000 },
+    { id: '5m-10m', label: '5M - 10M ETB', min: 5_000_000, max: 10_000_000 },
+    { id: 'gt10m', label: '> 10M ETB', min: 10_000_000, max: Infinity },
+  ];
+
   // Fetch agent profile by slug
   useEffect(() => {
     const fetchAgent = async () => {
@@ -177,49 +191,46 @@ const AgentPublicProfile = () => {
     }
   }, [listings]);
 
-  // Handle search and filtering
-  const handleSearch = (query: string, filters: SearchFilters) => {
-    setSearchQuery(query);
-    setSearchFilters(filters);
-    
-    let filtered = [...listings];
+  // Helper to toggle a filter value
+  function toggleFilter(key, value) {
+    setSearchFilters(prev => {
+      let next = { ...prev };
+      if (key === 'city') {
+        next.city = prev.city === value ? undefined : value;
+      } else if (key === 'progressStatus') {
+        next.progressStatus = prev.progressStatus === value ? undefined : value;
+      } else if (key === 'bankOption') {
+        next.bankOption = prev.bankOption === value ? undefined : value;
+      } else if (key === 'priceRange') {
+        if (prev.minPrice === value.min && prev.maxPrice === value.max) {
+          next.minPrice = undefined;
+          next.maxPrice = undefined;
+        } else {
+          next.minPrice = value.min;
+          next.maxPrice = value.max;
+        }
+      }
+      return next;
+    });
+  }
 
-    // Text search
-    if (query.trim()) {
-      const searchTerm = query.toLowerCase();
-      filtered = filtered.filter(listing =>
-        listing.title.toLowerCase().includes(searchTerm) ||
-        listing.description?.toLowerCase().includes(searchTerm) ||
-        listing.location?.toLowerCase().includes(searchTerm) ||
-        listing.city?.toLowerCase().includes(searchTerm)
-      );
-    }
-
-    // Apply filters
-    if (filters.minPrice) {
-      filtered = filtered.filter(listing => listing.price >= filters.minPrice!);
-    }
-    if (filters.maxPrice) {
-      filtered = filtered.filter(listing => listing.price <= filters.maxPrice!);
-    }
-    if (filters.city) {
-      filtered = filtered.filter(listing => listing.city === filters.city);
-    }
-    if (filters.progressStatus) {
-      filtered = filtered.filter(listing => listing.progress_status === filters.progressStatus);
-    }
-    if (filters.bankOption !== undefined) {
-      filtered = filtered.filter(listing => listing.bank_option === filters.bankOption);
-    }
-
-    setFilteredListings(filtered);
-    console.log(`Filtered ${filtered.length} listings from ${listings.length} total`);
-  };
-
-  // Initialize filtered listings when listings change
+  // Update filtered listings when searchFilters or listings change
   useEffect(() => {
-    setFilteredListings(listings);
-  }, [listings]);
+    let filtered = [...listings];
+    if (searchFilters.city) {
+      filtered = filtered.filter(l => l.city === searchFilters.city);
+    }
+    if (searchFilters.progressStatus) {
+      filtered = filtered.filter(l => l.progress_status === searchFilters.progressStatus);
+    }
+    if (searchFilters.bankOption !== undefined) {
+      filtered = filtered.filter(l => l.bank_option === searchFilters.bankOption);
+    }
+    if (searchFilters.minPrice !== undefined && searchFilters.maxPrice !== undefined) {
+      filtered = filtered.filter(l => l.price >= searchFilters.minPrice && l.price < searchFilters.maxPrice);
+    }
+    setFilteredListings(filtered);
+  }, [searchFilters, listings]);
 
   if (loading) {
     return (
@@ -267,7 +278,7 @@ const AgentPublicProfile = () => {
       <div className="container mx-auto px-4 py-8 relative z-10 -mt-16 md:-mt-24">
         <div className="max-w-7xl mx-auto">
           {/* Agent Profile Header */}
-          <div className="mb-12 relative z-20">
+          <div className="mb-4 relative z-20">
             <AgentProfileHeader 
               firstName={agent.first_name}
               lastName={agent.last_name}
@@ -276,7 +287,101 @@ const AgentPublicProfile = () => {
               avatarUrl={agent.avatar_url}
               whatsappLink={agent.whatsapp_link}
               telegramLink={agent.telegram_link}
+              listings={listings}
             />
+          </div>
+
+          {/* Responsive, functional category bar */}
+          <div className="mb-8 space-y-3">
+            {/* Places */}
+            {availableCities.length > 0 && (
+              <div>
+                <div className="font-semibold mb-1 text-[var(--portal-text)]">Places</div>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gold-200/40">
+                  {availableCities.map(city => (
+                    <button
+                      key={city}
+                      className={`whitespace-nowrap px-4 py-2 rounded-full border font-medium shadow-sm transition cursor-pointer ${searchFilters.city === city ? 'bg-red-500 text-white border-red-500' : 'bg-[var(--portal-bg-hover)] border-[var(--portal-border)] text-[var(--portal-text)] hover:bg-red-100'}`}
+                      onClick={() => toggleFilter('city', city)}
+                    >
+                      {city}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Progress Status */}
+            {listings.length > 0 && (() => {
+              const progressStatuses = Array.from(new Set(listings.map(l => l.progress_status).filter(Boolean)));
+              return progressStatuses.length > 0 ? (
+                <div>
+                  <div className="font-semibold mb-1 text-[var(--portal-text)]">Progress</div>
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gold-200/40">
+                    {progressStatuses.map(status => (
+                      <button
+                        key={status as string}
+                        className={`whitespace-nowrap px-4 py-2 rounded-full border font-medium shadow-sm transition cursor-pointer ${searchFilters.progressStatus === status ? 'bg-red-500 text-white border-red-500' : 'bg-[var(--portal-bg-hover)] border-[var(--portal-border)] text-[var(--portal-text)] hover:bg-red-100'}`}
+                        onClick={() => toggleFilter('progressStatus', status)}
+                      >
+                        {progressStatusLabels[status as string] || status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })()}
+            {/* Bank Option */}
+            {listings.length > 0 && (() => {
+              const hasBankOption = listings.some(l => l.bank_option);
+              const hasNoBankOption = listings.some(l => l.bank_option === false);
+              return (hasBankOption || hasNoBankOption) ? (
+                <div>
+                  <div className="font-semibold mb-1 text-[var(--portal-text)]">Bank Option</div>
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gold-200/40">
+                    {hasBankOption && (
+                      <button
+                        className={`whitespace-nowrap px-4 py-2 rounded-full border font-medium shadow-sm transition cursor-pointer ${searchFilters.bankOption === true ? 'bg-red-500 text-white border-red-500' : 'bg-[var(--portal-bg-hover)] border-[var(--portal-border)] text-[var(--portal-text)] hover:bg-red-100'}`}
+                        onClick={() => toggleFilter('bankOption', true)}
+                      >
+                        Available
+                      </button>
+                    )}
+                    {hasNoBankOption && (
+                      <button
+                        className={`whitespace-nowrap px-4 py-2 rounded-full border font-medium shadow-sm transition cursor-pointer ${searchFilters.bankOption === false ? 'bg-red-500 text-white border-red-500' : 'bg-[var(--portal-bg-hover)] border-[var(--portal-border)] text-[var(--portal-text)] hover:bg-red-100'}`}
+                        onClick={() => toggleFilter('bankOption', false)}
+                      >
+                        Not Available
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : null;
+            })()}
+            {/* Price Ranges */}
+            {listings.length > 0 && (() => {
+              const priceRangeIds = new Set<string>();
+              listings.forEach(l => {
+                const range = priceRanges.find(r => l.price >= r.min && l.price < r.max);
+                if (range) priceRangeIds.add(range.id);
+              });
+              return priceRangeIds.size > 0 ? (
+                <div>
+                  <div className="font-semibold mb-1 text-[var(--portal-text)]">Prices</div>
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gold-200/40">
+                    {priceRanges.filter(r => priceRangeIds.has(r.id)).map(range => (
+                      <button
+                        key={range.id}
+                        className={`whitespace-nowrap px-4 py-2 rounded-full border font-medium shadow-sm transition cursor-pointer ${(searchFilters.minPrice === range.min && searchFilters.maxPrice === range.max) ? 'bg-red-500 text-white border-red-500' : 'bg-[var(--portal-bg-hover)] border-[var(--portal-border)] text-[var(--portal-text)] hover:bg-red-100'}`}
+                        onClick={() => toggleFilter('priceRange', { min: range.min, max: range.max })}
+                      >
+                        {range.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })()}
           </div>
           
           {/* Search Section */}
@@ -295,122 +400,36 @@ const AgentPublicProfile = () => {
               </CardHeader>
               <CardContent>
                 <SearchBar
-                  onSearch={handleSearch}
+                  onSearch={() => {}}
                   availableCities={availableCities}
                   placeholder={`Search ${agent.first_name}'s properties...`}
                 />
               </CardContent>
             </Card>
           </motion.div>
-          
-          {/* Listings Section */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.4 }}
-            className="mb-12"
-          >
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center">
-                <div className="h-10 w-1 bg-gold-500 rounded-full mr-3"></div>
-                <h2 className="text-2xl font-bold text-gold-500">
-                  {hasActiveSearch ? 'Search Results' : `Properties Listed by ${agent.first_name}`}
-                </h2>
-              </div>
-              {hasActiveSearch && (
-                <div className="text-[var(--portal-text-secondary)]">
-                  {filteredListings.length} of {listings.length} properties
-                </div>
-              )}
-            </div>
-            
-            <AnimatePresence>
-              {listings.length > 0 ? (
-                filteredListings.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {filteredListings.map((listing, index) => (
-                      <motion.div
-                        key={listing.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 * (index % 3), duration: 0.4 }}
-                      >
-                        <ListingCard 
-                          id={listing.id}
-                          title={listing.title}
-                          location={listing.location}
-                          mainImageUrl={listing.main_image_url}
-                          agentSlug={agentSlug}
-                          description={listing.description}
-                          createdAt={listing.created_at}
-                        />
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="p-12 bg-[var(--portal-card-bg)] rounded-xl border border-[var(--portal-border)] text-center"
-                  >
-                    <Building className="h-16 w-16 text-[var(--portal-text-secondary)]/20 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2 text-gold-500">No Properties Found</h3>
-                    <p className="text-[var(--portal-text-secondary)] max-w-md mx-auto">
-                      No properties match your search criteria. Try adjusting your filters or search terms.
-                    </p>
-                  </motion.div>
-                )
-              ) : (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-12 bg-[var(--portal-card-bg)] rounded-xl border border-[var(--portal-border)] text-center"
-                >
-                  <Building className="h-16 w-16 text-[var(--portal-text-secondary)]/20 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2 text-gold-500">No Active Listings</h3>
-                  <p className="text-[var(--portal-text-secondary)] max-w-md mx-auto">
-                    This agent has no active listings at the moment. Please check back later or contact them directly for more information.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-          
-          {/* Contact Section */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.4 }}
-            className="bg-gradient-to-br from-[var(--portal-card-bg)] to-[var(--portal-card-bg)]/80 border border-[var(--portal-border)] rounded-xl p-8 text-center shadow-lg mb-12"
-          >
-            <div className="max-w-2xl mx-auto">
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.7, duration: 0.4 }}
-                className="w-16 h-16 bg-gold-500/10 rounded-full flex items-center justify-center mx-auto mb-4"
-              >
-                <Phone className="h-8 w-8 text-gold-500" />
-              </motion.div>
-              
-              <h3 className="text-2xl font-bold mb-3 text-gold-500">Interested in these properties?</h3>
-              <p className="mb-6 text-[var(--portal-text-secondary)]">
-                Contact {agent.first_name} directly for more information about any of the properties or to schedule a viewing.
-              </p>
-              
-              {agent.phone_number && (
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button className="bg-gold-500 hover:bg-gold-600 text-black py-6 px-8 rounded-xl font-semibold text-lg shadow-lg">
-                    <Phone className="h-5 w-5 mr-3" />
-                    Call {agent.first_name} at {agent.phone_number}
-                  </Button>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
+        </div>
+        {/* Show only filtered listings */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6 text-gold-500">Listings</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredListings.length > 0 ? (
+              filteredListings.map((listing, index) => (
+                <ListingCard
+                  key={listing.id}
+                  id={listing.id}
+                  title={listing.title}
+                  location={listing.location}
+                  mainImageUrl={listing.main_image_url}
+                  agentSlug={agent.slug}
+                  description={listing.description}
+                  createdAt={listing.created_at}
+                  onViewDetails={() => navigate(`/${agent.slug}/listing/${createSlug(listing.title)}`)}
+                />
+              ))
+            ) : (
+              <div className="col-span-full text-center text-[var(--portal-text-secondary)]">No listings found.</div>
+            )}
+          </div>
         </div>
       </div>
     </div>

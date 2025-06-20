@@ -422,8 +422,8 @@ const PaymentApprovalSidebar = () => {
       
       <Tabs defaultValue="pending" className="w-full flex flex-col flex-1">
         <div className="flex-none px-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="pending" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-3 bg-gray-100">
+            <TabsTrigger value="pending" className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white">
               Pending
               {pendingRequests.length > 0 && (
                 <Badge variant="secondary" className="ml-1">
@@ -431,7 +431,7 @@ const PaymentApprovalSidebar = () => {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="approved" className="flex items-center gap-2">
+            <TabsTrigger value="approved" className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white">
               Approved
               {approvedRequests.length > 0 && (
                 <Badge variant="secondary" className="ml-1">
@@ -439,7 +439,7 @@ const PaymentApprovalSidebar = () => {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="rejected" className="flex items-center gap-2">
+            <TabsTrigger value="rejected" className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white">
               Rejected
               {rejectedRequests.length > 0 && (
                 <Badge variant="secondary" className="ml-1">
@@ -452,7 +452,7 @@ const PaymentApprovalSidebar = () => {
 
         <div className="flex-1">
           <ScrollArea className="h-[calc(100vh-180px)]">
-            <div className="p-4">
+            <div className="p-4 pb-24 md:pb-4">
               <TabsContent value="pending">
                 {pendingRequests.length === 0 ? (
                   <div className="text-center p-8 text-gray-500">

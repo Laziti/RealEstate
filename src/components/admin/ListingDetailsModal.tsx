@@ -347,28 +347,37 @@ const ListingDetailsModal = ({ listing, open, onOpenChange, onStatusChange }: Li
               </Tooltip>
             </TooltipProvider>
           </div>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={deleting || updating}>
+          <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => onOpenChange(false)} disabled={deleting || updating}>
             Close
           </Button>
         </DialogFooter>
         {/* Custom Delete Confirmation Dialog */}
         <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Listing</DialogTitle>
-              <DialogDescription>
+            <DialogHeader className="mb-2">
+              <DialogTitle className="text-red-600 font-bold text-xl">Delete Listing</DialogTitle>
+              <DialogDescription className="text-black mt-2">
                 Are you sure you want to delete this listing? This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)} disabled={deleting}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={deleteListing} disabled={deleting}>
+            <div className="flex flex-col gap-3 mt-4">
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white w-full text-base font-semibold py-3"
+                onClick={deleteListing}
+                disabled={deleting}
+              >
                 {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Delete
               </Button>
-            </DialogFooter>
+              <Button
+                variant="outline"
+                className="border-red-600 text-red-600 bg-white hover:bg-red-50 w-full text-base font-semibold py-3"
+                onClick={() => setConfirmDeleteOpen(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </DialogContent>

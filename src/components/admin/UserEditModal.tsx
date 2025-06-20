@@ -141,38 +141,42 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
           <div className="space-y-6 py-4">
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Basic Information</h3>
+              <h3 className="text-lg font-semibold text-black">Basic Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name *</Label>
+                  <Label htmlFor="first_name" className="text-black font-semibold">First Name *</Label>
                   <Input
                     id="first_name"
+                    className="bg-white text-black"
                     value={formData.first_name || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Label htmlFor="last_name" className="text-black font-semibold">Last Name *</Label>
                   <Input
                     id="last_name"
+                    className="bg-white text-black"
                     value={formData.last_name || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone" className="text-black font-semibold">Phone Number</Label>
                   <Input
                     id="phone"
+                    className="bg-white text-black"
                     value={formData.phone_number || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="career">Career/Profession</Label>
+                  <Label htmlFor="career" className="text-black font-semibold">Career/Profession</Label>
                   <Input
                     id="career"
+                    className="bg-white text-black"
                     value={formData.career || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, career: e.target.value }))}
                   />
@@ -182,39 +186,43 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
 
             {/* Social Links */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Social Links</h3>
+              <h3 className="text-lg font-semibold text-black">Social Links</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="facebook">Facebook</Label>
+                  <Label htmlFor="facebook" className="text-black font-semibold">Facebook</Label>
                   <Input
                     id="facebook"
+                    className="bg-white text-black"
                     value={formData.social_links?.facebook || ''}
                     onChange={(e) => updateSocialLink('facebook', e.target.value)}
                     placeholder="https://facebook.com/username"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="twitter">Twitter</Label>
+                  <Label htmlFor="twitter" className="text-black font-semibold">Twitter</Label>
                   <Input
                     id="twitter"
+                    className="bg-white text-black"
                     value={formData.social_links?.twitter || ''}
                     onChange={(e) => updateSocialLink('twitter', e.target.value)}
                     placeholder="https://twitter.com/username"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="linkedin">LinkedIn</Label>
+                  <Label htmlFor="linkedin" className="text-black font-semibold">LinkedIn</Label>
                   <Input
                     id="linkedin"
+                    className="bg-white text-black"
                     value={formData.social_links?.linkedin || ''}
                     onChange={(e) => updateSocialLink('linkedin', e.target.value)}
                     placeholder="https://linkedin.com/in/username"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="instagram">Instagram</Label>
+                  <Label htmlFor="instagram" className="text-black font-semibold">Instagram</Label>
                   <Input
                     id="instagram"
+                    className="bg-white text-black"
                     value={formData.social_links?.instagram || ''}
                     onChange={(e) => updateSocialLink('instagram', e.target.value)}
                     placeholder="https://instagram.com/username"
@@ -225,33 +233,33 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
 
             {/* Account Settings */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Account Settings</h3>
+              <h3 className="text-lg font-semibold text-black">Account Settings</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="status">Status *</Label>
+                  <Label htmlFor="status" className="text-black font-semibold">Status *</Label>
                   <Select
                     value={formData.status}
                     onValueChange={(value: 'active' | 'inactive') => setFormData(prev => ({ ...prev, status: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white text-black">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white text-black">
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="subscription">Subscription Type *</Label>
+                  <Label htmlFor="subscription" className="text-black font-semibold">Subscription Type *</Label>
                   <Select
                     value={formData.subscription_status}
                     onValueChange={(value: 'free' | 'pro') => setFormData(prev => ({ ...prev, subscription_status: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white text-black">
                       <SelectValue placeholder="Select subscription type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white text-black">
                       <SelectItem value="free">Free</SelectItem>
                       <SelectItem value="pro">Pro</SelectItem>
                     </SelectContent>
@@ -261,7 +269,7 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="limit_type">Listing Limit Type *</Label>
+                  <Label htmlFor="limit_type" className="text-black font-semibold">Listing Limit Type *</Label>
                   <Select
                     value={formData.listing_limit?.type}
                     onValueChange={(value: 'day' | 'week' | 'month' | 'year' | 'unlimited') => 
@@ -274,10 +282,10 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
                       }))
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white text-black">
                       <SelectValue placeholder="Select limit type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white text-black">
                       <SelectItem value="day">Per Day</SelectItem>
                       <SelectItem value="week">Per Week</SelectItem>
                       <SelectItem value="month">Per Month</SelectItem>
@@ -288,11 +296,12 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
                 </div>
                 {formData.listing_limit?.type !== 'unlimited' && (
                   <div className="space-y-2">
-                    <Label htmlFor="limit_value">Listing Limit Value *</Label>
+                    <Label htmlFor="limit_value" className="text-black font-semibold">Listing Limit Value *</Label>
                     <Input
                       id="limit_value"
                       type="number"
                       min="1"
+                      className="bg-white text-black"
                       value={formData.listing_limit?.value || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
@@ -309,14 +318,21 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
           </div>
         </ScrollArea>
 
-        <DialogFooter className="px-6 py-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+        <DialogFooter className="px-6 py-4 border-t flex flex-col md:flex-row gap-3">
+          <Button
+            className="bg-black text-white border-black hover:bg-gray-800 w-full md:w-auto font-semibold"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="bg-red-600 hover:bg-red-700 text-white w-full md:w-auto font-semibold"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
             {loading ? 'Saving...' : 'Save Changes'}
           </Button>
-            </DialogFooter>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

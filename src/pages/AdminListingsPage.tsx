@@ -202,10 +202,10 @@ const AdminListingsPage = () => {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen">
+      <div className="min-h-screen w-full md:pl-72 bg-white">
         <AdminSidebar />
         <div className="bg-white min-h-screen flex flex-col flex-1">
-          <div className="p-6 flex-1">
+          <div className="p-6 flex-1 pb-20 md:pb-6">
             <h1 className="text-2xl font-semibold mb-6 text-black">Property Listings</h1>
             
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -220,65 +220,6 @@ const AdminListingsPage = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="flex items-center gap-1"
-                    onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                  >
-                    <Filter className="h-4 w-4" />
-                    <span>Filter</span>
-                  </Button>
-                  
-                  {filterMenuOpen && (
-                    <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                      <div className="p-2">
-                        <div className="px-2 py-1 text-sm font-semibold">Status</div>
-                        <button 
-                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
-                            ${filters.status === 'all' ? 'bg-gray-100 font-medium' : ''}`}
-                          onClick={() => handleFilterChange('all')}
-                        >
-                          All
-                        </button>
-                        <button 
-                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
-                            ${filters.status === 'active' ? 'bg-gray-100 font-medium' : ''}`}
-                          onClick={() => handleFilterChange('active')}
-                        >
-                          Active
-                        </button>
-                        <button 
-                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
-                            ${filters.status === 'hidden' ? 'bg-gray-100 font-medium' : ''}`}
-                          onClick={() => handleFilterChange('hidden')}
-                        >
-                          Hidden
-                        </button>
-                        <button 
-                          className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 
-                            ${filters.status === 'pending' ? 'bg-gray-100 font-medium' : ''}`}
-                          onClick={() => handleFilterChange('pending')}
-                        >
-                          Pending
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {(searchTerm || filters.status !== 'all') && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={clearFilters}
-                    className="flex items-center gap-1"
-                  >
-                    <X className="h-4 w-4" /> Clear
-                  </Button>
-                )}
-                
                 <Button onClick={fetchListings} size="sm" disabled={loading}>
                   {loading ? (
                     <>

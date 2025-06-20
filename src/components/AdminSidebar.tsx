@@ -150,7 +150,7 @@ const AdminSidebar = () => {
   return (
     <>
       {/* Desktop Sidebar */}
-      <div className="w-72 h-screen flex-shrink-0 overflow-auto portal-sidebar hidden md:block">
+      <div className="w-72 fixed left-0 top-0 h-screen flex-shrink-0 portal-sidebar hidden md:block z-40">
         <SidebarContent />
       </div>
       {/* Mobile Bottom Navigation */}

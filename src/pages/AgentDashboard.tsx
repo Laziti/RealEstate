@@ -361,7 +361,7 @@ const AgentDashboard = () => {
               </div>
               
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 pb-24 md:pb-6">
               {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 text-gold-500 animate-spin" />

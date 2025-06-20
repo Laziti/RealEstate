@@ -51,7 +51,22 @@ const ListingTable = ({ listings, onEdit }: ListingTableProps) => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-6">
             {listings.map((listing) => (
-              <div key={listing.id} className="block">
+              <div key={listing.id} className="relative block">
+                {/* Edit Button (top right corner) */}
+                <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1">
+                  <button
+                    type="button"
+                    className={`bg-white/80 hover:bg-white shadow rounded-full p-2 transition-colors border border-[var(--portal-border)] ${((listing.edit_count ?? 0) >= 2) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={((listing.edit_count ?? 0) >= 2) ? 'No edits left' : 'Edit Listing'}
+                    onClick={() => onEdit(listing.id)}
+                    disabled={(listing.edit_count ?? 0) >= 2}
+                  >
+                    <Edit className="h-5 w-5 text-[var(--portal-accent)]" />
+                  </button>
+                  <span className={`mt-1 text-xs px-2 py-0.5 rounded-full border ${((listing.edit_count ?? 0) >= 2) ? 'bg-red-100 text-red-600 border-red-200' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                    {`Edits left: ${2 - (listing.edit_count ?? 0)}`}
+                  </span>
+                </div>
                 <ListingCard
                   id={listing.id}
                   title={listing.title}

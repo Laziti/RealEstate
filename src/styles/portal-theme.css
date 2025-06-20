@@ -362,3 +362,32 @@ button.submit-button:hover, button.primary-button:hover, button[type="submit"]:h
 .empty-state-button:hover {
   background-color: var(--portal-button-hover);
 }
+
+/* Brand override for Radix Select dropdown and modal */
+[data-radix-popper-content-wrapper] .bg-popover,
+[data-radix-popper-content-wrapper] .bg-background,
+[data-radix-popper-content-wrapper] {
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: none !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+[data-radix-popper-content-wrapper] [data-state="checked"],
+[data-radix-popper-content-wrapper] [data-highlighted] {
+  background: #e50000 !important; /* Brand red */
+  color: #fff !important;
+}
+
+[data-radix-popper-content-wrapper] [data-state="checked"] svg,
+[data-radix-popper-content-wrapper] [data-highlighted] svg {
+  color: #fff !important;
+}
+
+/* Remove modal and dropdown shadow */
+[data-state="open"].shadow-lg,
+.shadow-lg,
+.shadow-md,
+.shadow {
+  box-shadow: none !important;
+}

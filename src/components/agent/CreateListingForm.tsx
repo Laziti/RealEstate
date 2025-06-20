@@ -25,8 +25,7 @@ import { useNavigate } from 'react-router-dom';
 const listingSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
-  price: z.coerce.number().positive('Price must be a positive number'),
-  location: z.string().min(3, 'Location must be at least 3 characters'),
+  price: z.preprocess((val) => val === '' || val === undefined ? undefined : Number(val), z.number().positive('Price must be a positive number').optional()),
   city: z.enum([
     'Addis Ababa',
     'Arada',
@@ -83,13 +82,14 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 2;
 
+  const [callForPrice, setCallForPrice] = useState(false);
+
   const form = useForm<ListingFormValues>({
     resolver: zodResolver(listingSchema),
     defaultValues: {
       title: '',
       description: '',
       price: undefined,
-      location: '',
       city: 'Addis Ababa', // Set default city to match the enum type
       progress_status: 'fully_finished',
       down_payment_percent: undefined,
@@ -98,6 +98,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
   });
 
   const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setMainImage(file);
@@ -106,10 +107,10 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
   };
 
   const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       setAdditionalImages(prev => [...prev, ...filesArray]);
-      
       const newPreviews = filesArray.map(file => URL.createObjectURL(file));
       setAdditionalImagePreviews(prev => [...prev, ...newPreviews]);
     }
@@ -156,7 +157,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
     switch (step) {
       case 1:
         // Property Details validation
-        const step1Fields: (keyof ListingFormValues)[] = ['title', 'description', 'price', 'location', 'city', 'progress_status'];
+        const step1Fields: (keyof ListingFormValues)[] = ['title', 'description', 'price', 'city', 'progress_status'];
         const isStep1Valid = await form.trigger(step1Fields);
         if (!isStep1Valid) {
           const firstError = step1Fields.find(field => form.formState.errors[field]);
@@ -255,8 +256,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
           user_id: user.id,
           title: values.title,
           description: values.description,
-          price: values.price,
-          location: values.location,
+          price: callForPrice ? null : values.price ?? null,
           city: values.city,
           main_image_url: mainImagePublicUrl.publicUrl,
           additional_image_urls: additionalImageUrls.length > 0 ? additionalImageUrls : null,
@@ -364,6 +364,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
           </div>
         </div>
 
+        {/* Step 2: Image Uploads - OUTSIDE the form for mobile compatibility */}
         {currentStep === 2 && (
           <div className="mb-8">
             <label className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
@@ -429,9 +430,54 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                 )}
               </div>
             </div>
+
+            <label className="block text-sm font-medium text-[var(--portal-label-text)] mb-2 mt-6">
+              Additional Images (Optional)
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-2">
+              {additionalImagePreviews.map((preview, index) => (
+                <div key={index} className="relative h-36 border rounded-lg overflow-hidden shadow-sm bg-[var(--portal-bg)]/40">
+                  <img 
+                    src={preview} 
+                    alt={`Additional image ${index + 1}`} 
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAdditionalImage(index)}
+                    className="absolute top-2 right-2 p-1.5 bg-[var(--portal-button-bg)] text-white rounded-full hover:bg-[var(--portal-button-hover)] transition-colors shadow-md"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {additionalImages.length < 5 && (
+                <label
+                  key={`additional-image-upload-step-${currentStep}-${additionalImages.length}`}
+                  htmlFor="additional-image-upload"
+                  className="h-36 border-2 border-dashed border-[var(--portal-border)] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-[var(--portal-bg-hover)] transition-colors bg-[var(--portal-bg)]/40"
+                >
+                  <Plus className="h-8 w-8 text-gold-500" />
+                  <span className="text-sm text-[var(--portal-text-secondary)] mt-2 font-medium">Add Image</span>
+                  <input
+                    id="additional-image-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="sr-only"
+                    onChange={handleAdditionalImagesChange}
+                    autoComplete="off"
+                  />
+                </label>
+              )}
+            </div>
+            <p className="text-xs text-[var(--portal-text-secondary)] mt-3">
+              You can upload up to 5 additional images for better property presentation
+            </p>
           </div>
         )}
 
+        {/* Main form only wraps property details and submit button */}
         <form
           onSubmit={(e) => e.preventDefault()} // Always prevent default form submission
           onKeyDown={e => {
@@ -490,38 +536,37 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="col-span-1">
                       <label htmlFor="price" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                          Price (ETB) <span className="text-red-500">*</span>
+                        Price (ETB)
                       </label>
-                      <input 
-                        id="price"
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        required
-                        placeholder="e.g. 150000"
-                        className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
-                        {...form.register('price')}
-                        autoComplete="off"
-                      />
-                      {form.formState.errors.price && (
+                      <div className="flex items-center gap-3">
+                        <input 
+                          id="price"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="e.g. 150000"
+                          className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
+                          {...form.register('price')}
+                          autoComplete="off"
+                          disabled={callForPrice}
+                        />
+                        <label className="flex items-center gap-2 text-sm font-medium cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={callForPrice}
+                            onChange={e => {
+                              setCallForPrice(e.target.checked);
+                              if (e.target.checked) {
+                                form.setValue('price', undefined);
+                              }
+                            }}
+                            className="h-4 w-4 border-gray-300 rounded"
+                          />
+                          Call for price
+                        </label>
+                      </div>
+                      {form.formState.errors.price && !callForPrice && (
                         <p className="mt-1 text-sm text-red-500">{form.formState.errors.price.message}</p>
-                      )}
-                    </div>
-                    <div className="col-span-1">
-                      <label htmlFor="location" className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                        Location <span className="text-red-500">*</span>
-                      </label>
-                      <input 
-                        id="location"
-                        type="text"
-                        required
-                        placeholder="e.g. Addis Ababa"
-                        className="w-full px-4 py-3 rounded-lg bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border border-[var(--portal-input-border)] focus:ring-2 focus:ring-gold-500/20 focus:border-gold-500 outline-none transition-all"
-                        {...form.register('location')}
-                        autoComplete="off"
-                      />
-                      {form.formState.errors.location && (
-                        <p className="mt-1 text-sm text-red-500">{form.formState.errors.location.message}</p>
                       )}
                     </div>
                   </div>
@@ -624,66 +669,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                 </div>
               </motion.div>
             )}
-
-            {/* Property Images Step */}
-            {currentStep === 2 && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div>
-                  <label className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">
-                    Additional Images (Optional)
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-2">
-                    {/* Render existing additional images */}
-                    {additionalImagePreviews.map((preview, index) => (
-                      <div key={index} className="relative h-36 border rounded-lg overflow-hidden shadow-sm bg-[var(--portal-bg)]/40">
-                        <img 
-                          src={preview} 
-                          alt={`Additional image ${index + 1}`} 
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeAdditionalImage(index)}
-                          className="absolute top-2 right-2 p-1.5 bg-[var(--portal-button-bg)] text-white rounded-full hover:bg-[var(--portal-button-hover)] transition-colors shadow-md"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                    
-                    {/* Add more images button */}
-                    {additionalImages.length < 5 && (
-                      <label
-                        key={`additional-image-upload-step-${currentStep}-${additionalImages.length}`}
-                        htmlFor="additional-image-upload"
-                        className="h-36 border-2 border-dashed border-[var(--portal-border)] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-[var(--portal-bg-hover)] transition-colors bg-[var(--portal-bg)]/40"
-                      >
-                        <Plus className="h-8 w-8 text-gold-500" />
-                        <span className="text-sm text-[var(--portal-text-secondary)] mt-2 font-medium">Add Image</span>
-                        <input
-                          id="additional-image-upload"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="sr-only"
-                          onChange={handleAdditionalImagesChange}
-                          autoComplete="off"
-                        />
-                      </label>
-                    )}
-                  </div>
-                  <p className="text-xs text-[var(--portal-text-secondary)] mt-3">
-                    You can upload up to 5 additional images for better property presentation
-                  </p>
-                </div>
-              </motion.div>
-            )}
           </div>
-
           <div className="mt-12 pt-6 border-t border-[var(--portal-border)] flex justify-between items-center">
             {currentStep > 1 && (
               <Button
@@ -695,7 +681,6 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
                 Back
               </Button>
             )}
-
             {currentStep < totalSteps ? (
               <Button
                 type="button"
@@ -706,13 +691,13 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
               </Button>
             ) : (
               <Button
-                type="button" // Always type="button" to prevent default form submission
+                type="button"
                 disabled={isSubmitting}
-                onClick={form.handleSubmit(onSubmit)} // Directly call handleSubmit here
+                onClick={form.handleSubmit(onSubmit)}
                 className="ml-auto px-8 py-3 bg-[var(--portal-button-bg)] hover:bg-[var(--portal-button-hover)] text-white rounded-lg px-6 py-2 text-lg transition"
               >
                 {isSubmitting ? (
-                  <> 
+                  <>
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                     Creating Listing...
                   </>
@@ -722,7 +707,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
               </Button>
             )}
           </div>
-          </form>
+        </form>
       </div>
 
       <AnimatePresence>
