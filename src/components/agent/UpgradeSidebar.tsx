@@ -53,6 +53,14 @@ const PLAN_ID_MAP: Record<string, string> = {
   'annual': 'pro_annual',
 };
 
+function sanitizeFilename(filename: string): string {
+  return filename
+    .replace(/[\\?*<>|":]/g, '-') // forbidden by most filesystems
+    .replace(/[^\x00-\x7F]/g, '-') // non-ASCII
+    .replace(/-+/g, '-') // collapse multiple dashes
+    .replace(/^-+|-+$/g, ''); // trim leading/trailing dashes
+}
+
 const UpgradeSidebar = () => {
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
@@ -122,13 +130,18 @@ const UpgradeSidebar = () => {
   };
 
   const handleReceiptChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[handleReceiptChange] event:', event);
     const file = event.target.files?.[0];
-    if (!file) return;
-
+    if (!file) {
+      setError('No file detected. If you tried to select a file and nothing happened, your phone or browser may not support this file type.');
+      console.warn('[handleReceiptChange] No file detected:', event);
+      return;
+    }
     // Relaxed file type validation for gallery/camera
     const ext = file.name.split('.').pop()?.toLowerCase();
     const isImage = (file.type && file.type.startsWith('image/')) || (!file.type && ext && ['jpg','jpeg','png','gif','webp'].includes(ext));
     const isPdf = file.type === 'application/pdf' || (!file.type && ext === 'pdf');
+    console.log('[handleReceiptChange] file:', file, 'isImage:', isImage, 'isPdf:', isPdf);
     if (!isImage && !isPdf) {
       setError('Please select an image or PDF file');
       return;
@@ -168,45 +181,93 @@ const UpgradeSidebar = () => {
     setError(null);
 
     try {
-      // Upload receipt to storage
-      const fileName = `${user.id}/${Date.now()}-${receipt.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from('receipts')
-        .upload(fileName, receipt);
+      // Debug: log file details
+      console.log('[handleSubmit] receipt:', receipt);
+      console.log('[handleSubmit] receipt.size:', receipt.size, 'type:', receipt.type);
 
+      // Sanitize filename before upload
+      const safeName = sanitizeFilename(receipt.name);
+      const fileName = `${user.id}/${Date.now()}-${safeName}`;
+      let uploadError = null;
+      if (receipt.size > 0) {
+        const { error } = await supabase.storage
+          .from('receipts')
+          .upload(fileName, receipt);
+        uploadError = error;
+        if (!error) {
+          // Insert subscription request into DB
+          const { error: insertError } = await supabase
+            .from('subscription_requests')
+            .insert([
+              {
+                user_id: user.id,
+                plan_id: PLAN_ID_MAP[selectedPlan.id],
+                receipt_path: fileName,
+                amount: selectedPlan.price,
+                duration: selectedPlan.duration,
+                listings_per_month: selectedPlan.listingsPerMonth,
+                status: 'pending',
+              },
+            ]);
+          if (insertError) {
+            setError('Failed to submit upgrade request. Please try again.');
+            setIsSubmitting(false);
+            return;
+          }
+          setLocalSuccess(true);
+          setReceipt(null);
+          if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+          setReceiptPreview(null);
+          setSelectedPlan(null);
+          setTimeout(() => setLocalSuccess(false), 4000);
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        uploadError = { message: 'File size is zero, will try FileReader fallback.' };
+      }
+
+      // If upload failed or file size is 0, try FileReader fallback
       if (uploadError) {
-        setError('Failed to upload receipt. Please try again.');
-        return;
+        console.warn('[handleSubmit] Upload failed or file size is zero, trying FileReader fallback:', uploadError);
+        const fileReader = new FileReader();
+        fileReader.onload = async (e) => {
+          try {
+            const arrayBuffer = e.target.result;
+            const blob = new Blob([arrayBuffer], { type: receipt.type || 'application/octet-stream' });
+            const { error: fallbackError } = await supabase.storage
+              .from('receipts')
+              .upload(fileName, blob);
+            if (fallbackError) {
+              console.error('[handleSubmit] Fallback upload failed:', fallbackError);
+              setError('Failed to upload receipt (FileReader fallback). Please try a different image or browser.');
+              setIsSubmitting(false);
+              return;
+            }
+            // Success
+            setLocalSuccess(true);
+            setReceipt(null);
+            if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+            setReceiptPreview(null);
+            setSelectedPlan(null);
+            setTimeout(() => setLocalSuccess(false), 4000);
+          } catch (fallbackErr) {
+            console.error('[handleSubmit] FileReader fallback error:', fallbackErr);
+            setError('Failed to upload receipt (FileReader fallback). Please try a different image or browser.');
+          } finally {
+            setIsSubmitting(false);
+          }
+        };
+        fileReader.onerror = (e) => {
+          console.error('[handleSubmit] FileReader error:', e);
+          setError('Failed to read file for upload.');
+          setIsSubmitting(false);
+        };
+        fileReader.readAsArrayBuffer(receipt);
+        return; // Exit, as fallback is async
       }
-
-      // Create subscription request record
-      const { error: dbError } = await supabase
-        .from('subscription_requests')
-        .insert([{
-          user_id: user.id,
-          plan_id: PLAN_ID_MAP[selectedPlan.id],
-          receipt_path: fileName,
-          status: 'pending',
-          amount: selectedPlan.price,
-          duration: selectedPlan.duration,
-          listings_per_month: selectedPlan.listingsPerMonth
-        }]);
-
-      if (dbError) {
-        setError('Failed to submit upgrade request. Please try again.');
-        return;
-      }
-
-      setLocalSuccess(true);
-      setReceipt(null);
-      if (receiptPreview) URL.revokeObjectURL(receiptPreview);
-      setReceiptPreview(null);
-      setSelectedPlan(null);
-      setTimeout(() => setLocalSuccess(false), 4000);
-
     } catch (err) {
       setError('Failed to submit upgrade request. Please try again.');
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -287,53 +348,71 @@ const UpgradeSidebar = () => {
               <div>Listings: {selectedPlan?.listingsPerMonth} per month</div>
             </div>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 mb-4">
-              <input
-                type="file"
-                id="receipt"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={handleReceiptChange}
-                disabled={isSubmitting}
-                style={{ display: 'none' }}
-              />
-              {receipt ? (
-                <div className="flex flex-col items-center justify-center min-h-[120px]">
-                  {receiptPreview ? (
-                    <img src={receiptPreview} alt="Receipt preview" className="max-h-40 rounded mb-2" />
-                  ) : (
-                    <div className="text-xs text-gray-500 mb-2">PDF file selected</div>
-                  )}
-                  <div className="flex items-center space-x-2 text-center mb-4">
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm break-all max-w-[200px]">{receipt.name}</span>
-                    <button
-                      type="button"
-                      onClick={removeReceipt}
-                      className="p-2 hover:bg-red-500/10 rounded-full flex-shrink-0 touch-manipulation"
-                      style={{ touchAction: 'manipulation' }}
-                    >
-                      <X className="h-4 w-4 text-red-500" />
-                    </button>
+              {/*
+                Note: The file input is visually hidden but accessible for mobile compatibility.
+                Using opacity: 0 and absolute positioning ensures the input is clickable/tappable on all devices.
+                The capture attribute helps some mobile browsers open the camera/gallery directly.
+              */}
+              <label
+                htmlFor="receipt"
+                className="flex flex-col items-center justify-center min-h-[120px] cursor-pointer touch-manipulation bg-white hover:bg-gray-100 rounded-lg border border-dashed border-gray-300 p-4 transition-colors relative"
+                style={{ touchAction: 'manipulation', position: 'relative', zIndex: 1 }}
+              >
+                <input
+                  type="file"
+                  id="receipt"
+                  accept="image/*,application/pdf"
+                  capture="environment"
+                  onChange={handleReceiptChange}
+                  disabled={isSubmitting}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    opacity: 0,
+                    zIndex: 2,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                  tabIndex={0}
+                  aria-label="Upload payment receipt"
+                />
+                {receipt ? (
+                  <div className="flex flex-col items-center justify-center min-h-[120px]">
+                    {receiptPreview ? (
+                      <img src={receiptPreview} alt="Receipt preview" className="max-h-40 rounded mb-2" />
+                    ) : (
+                      <div className="text-xs text-gray-500 mb-2">PDF file selected</div>
+                    )}
+                    <div className="flex items-center space-x-2 text-center mb-4">
+                      <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                      <span className="text-sm break-all max-w-[200px]">{receipt.name}</span>
+                      <button
+                        type="button"
+                        onClick={removeReceipt}
+                        className="p-2 hover:bg-red-500/10 rounded-full flex-shrink-0 touch-manipulation"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </button>
+                    </div>
+                    <div className="text-xs text-blue-500 text-center mb-1">
+                      Debug: {receipt.type || 'unknown type'}, {Math.round(receipt.size / 1024)} KB
+                    </div>
+                    <div className="text-xs text-gray-500 text-center">
+                      File selected successfully
+                    </div>
                   </div>
-                  <div className="text-xs text-blue-500 text-center mb-1">
-                    Debug: {receipt.type || 'unknown type'}, {Math.round(receipt.size / 1024)} KB
-                  </div>
-                  <div className="text-xs text-gray-500 text-center">
-                    File selected successfully
-                  </div>
-                </div>
-              ) : (
-                <label
-                  htmlFor="receipt"
-                  className="flex flex-col items-center justify-center min-h-[120px] cursor-pointer touch-manipulation bg-white hover:bg-gray-100 rounded-lg border border-dashed border-gray-300 p-4 transition-colors"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Upload className="h-8 w-8 text-gray-400 mb-3" />
-                  <span className="text-sm text-gray-500 text-center mb-2">
-                    Tap to upload receipt (image or PDF, max 15MB)
-                  </span>
-                </label>
-              )}
+                ) : (
+                  <>
+                    <Upload className="h-8 w-8 text-gray-400 mb-3" />
+                    <span className="text-sm text-gray-500 text-center mb-2">
+                      Tap to upload receipt (image or PDF, max 15MB)
+                    </span>
+                  </>
+                )}
+              </label>
             </div>
             {error && (
               <div className="text-red-500 text-sm mb-2">{error}</div>

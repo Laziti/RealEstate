@@ -253,17 +253,7 @@ const AuthHero: React.FC = () => {
             Your Real Estate.
             <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-[var(--portal-accent)] to-[#ff5a5a]"> Your Brand.</span>
           </motion.h1>
-          
-          <motion.p 
-            className="text-xl md:text-2xl text-black mt-2 text-center lg:text-left"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            Create listings under your name and share with clients.
-          </motion.p>
         </div>
-
         {/* Right side - Auth Form */}
         <div className="w-full lg:w-1/2 lg:pl-12">
           <motion.div 
@@ -356,7 +346,7 @@ const AuthHero: React.FC = () => {
                     type="text"
                     value={signUpFirstName}
                     onChange={(e) => setSignUpFirstName(e.target.value)}
-                      placeholder="John"
+                      
                     className={inputBaseClasses}
                     disabled={isLoading}
                   />
@@ -369,7 +359,7 @@ const AuthHero: React.FC = () => {
                     type="text"
                     value={signUpLastName}
                     onChange={(e) => setSignUpLastName(e.target.value)}
-                      placeholder="Doe"
+                      
                     className={inputBaseClasses}
                     disabled={isLoading}
                   />
@@ -383,7 +373,7 @@ const AuthHero: React.FC = () => {
                   type="email"
                   value={signUpEmail}
                   onChange={(e) => setSignUpEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    
                   className={inputBaseClasses}
                   disabled={isLoading}
                 />
@@ -396,7 +386,7 @@ const AuthHero: React.FC = () => {
                   type="password"
                   value={signUpPassword}
                   onChange={(e) => setSignUpPassword(e.target.value)}
-                    placeholder="••••••••"
+                    
                   className={inputBaseClasses}
                   disabled={isLoading}
                 />
@@ -409,7 +399,7 @@ const AuthHero: React.FC = () => {
                   type="tel"
                   value={signUpPhoneNumber}
                   onChange={(e) => setSignUpPhoneNumber(e.target.value)}
-                    placeholder="+251 91 234 5678"
+                    
                   className={inputBaseClasses}
                   disabled={isLoading}
                 />
