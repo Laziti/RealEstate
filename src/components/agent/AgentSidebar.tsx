@@ -97,6 +97,12 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
 
   const menuItems: MenuItem[] = [
     { 
+      id: 'dashboard', 
+      label: 'Dashboard', 
+      icon: <LayoutDashboard className="h-5 w-5" />,
+      action: () => setActiveTab('dashboard') 
+    },
+    { 
       id: 'listings', 
       label: 'My Listings', 
       icon: <List className="h-5 w-5" />,
@@ -240,6 +246,7 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
   const mobileMenuItems = menuItems.map(item => ({
     ...item,
     label:
+      item.id === 'dashboard' ? 'Home' :
       item.id === 'listings' ? 'Listings' :
       item.id === 'create' ? 'Add' :
       item.id === 'account' ? 'Account' :
