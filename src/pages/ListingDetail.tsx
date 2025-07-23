@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Helmet } from 'react-helmet-async';
 import { createSlug, formatCurrency, formatDate } from '@/lib/formatters';
-import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send, Share2, Copy, Check, FileText, Home, DollarSign, Facebook, Twitter, Linkedin, ThumbsUp } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send, Share2, Copy, Check, FileText, Home, DollarSign, Facebook, Twitter, Linkedin, ThumbsUp, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createListingSlug } from '@/components/public/ListingCard';
@@ -282,125 +282,8 @@ const ListingDetail = () => {
         <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
       
-      <div className="min-h-screen bg-gradient-to-br from-[var(--portal-bg)] to-gold-50/30 relative overflow-x-hidden">
-        {/* Decorative blurred background elements for luxury feel */}
-        <div className="fixed top-0 left-0 w-[36rem] h-[36rem] bg-gold-400/10 rounded-full -ml-60 -mt-60 blur-3xl pointer-events-none z-0"></div>
-        <div className="fixed bottom-0 right-0 w-[36rem] h-[36rem] bg-gold-500/10 rounded-full -mr-60 -mb-60 blur-3xl pointer-events-none z-0"></div>
-        {/* Hero/Image Section with gradient overlay */}
-        <div className="relative w-full h-72 md:h-96 mb-12 flex items-end z-10">
-          <div className="absolute inset-0">
-            <img 
-              src={listing.main_image_url || '/placeholder.svg'} 
-              alt={listing.title} 
-              className="w-full h-full object-cover object-center brightness-90" 
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-          </div>
-          <div className="relative z-10 w-full px-6 md:px-16 pb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-            <div>
-              <h1 className="text-3xl md:text-5xl font-extrabold text-white drop-shadow-lg mb-2 flex items-center gap-3">
-                <Home className="h-8 w-8 text-gold-400" />
-                {listing.title}
-              </h1>
-              <div className="flex items-center gap-6 text-lg text-gold-100/90 font-medium">
-                <span className="flex items-center gap-2"><MapPin className="h-5 w-5 text-gold-300" />{listing.location || 'N/A'}</span>
-                <span className="flex items-center gap-2"><Banknote className="h-5 w-5 text-gold-300" />{formatCurrency(listing.price || 0)}</span>
-                <span className="flex items-center gap-2"><Calendar className="h-5 w-5 text-gold-300" />{formatDate(listing.created_at)}</span>
-              </div>
-            </div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex-shrink-0"
-            >
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="bg-white/80 text-gold-700 hover:bg-gold-100 border-none flex items-center justify-center gap-2 px-6 py-3 shadow-lg backdrop-blur-md"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    Share Listing
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 bg-white/90 border-gold-100 p-2 rounded-lg shadow-xl backdrop-blur-md">
-                  <Button
-                    onClick={handleCopyLink}
-                    variant="ghost"
-                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                  >
-                    <AnimatePresence mode="wait">
-                      {copied ? (
-                        <motion.div
-                          key="check"
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0.8, opacity: 0 }}
-                          className="text-green-500 mr-2"
-                        >
-                          <Check className="h-4 w-4" />
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="copy"
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0.8, opacity: 0 }}
-                          className="mr-2"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                    {copied ? 'Copied!' : 'Copy Link'}
-                  </Button>
-                  <Button 
-                    onClick={shareToFacebook}
-                    variant="ghost"
-                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                  >
-                    <Facebook className="h-4 w-4 mr-2" />
-                    Facebook
-                  </Button>
-                  <Button 
-                    onClick={shareToTwitter}
-                    variant="ghost"
-                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                  >
-                    <Twitter className="h-4 w-4 mr-2" />
-                    Twitter
-                  </Button>
-                  <Button 
-                    onClick={shareToWhatsApp}
-                    variant="ghost"
-                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                  >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    WhatsApp
-                  </Button>
-                  <Button 
-                    onClick={shareToLinkedIn}
-                    variant="ghost"
-                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                  >
-                    <Linkedin className="h-4 w-4 mr-2" />
-                    LinkedIn
-                  </Button>
-                  <Button
-                    onClick={shareToTelegram}
-                    variant="ghost"
-                    className="w-full justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Telegram
-                  </Button>
-                </PopoverContent>
-              </Popover>
-            </motion.div>
-          </div>
-        </div>
-        
-        <div className="container mx-auto px-4 md:px-10 py-12 relative z-10 max-w-7xl">
+      {/* MAIN CONTENT GRID (no hero/cover, no heading, no details card) */}
+      <main className="container mx-auto px-4 md:px-10 py-12 relative z-10 max-w-7xl">
           {/* Back Button */}
           <motion.button
             initial={{ opacity: 0, x: -20 }}
@@ -412,19 +295,18 @@ const ListingDetail = () => {
             <ArrowLeft className="h-5 w-5 mr-1 group-hover:-translate-x-1 transition-transform" />
             Back to Listings
           </motion.button>
-
-          {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-            {/* Left: Gallery (2 cols on desktop) */}
+          {/* Left: Gallery and Description */}
             <div className="lg:col-span-2 flex flex-col gap-8">
+            {/* Gallery */}
               <ModernGallery images={[
                 listing.main_image_url,
                 ...(Array.isArray(listing.additional_image_urls) ? listing.additional_image_urls : [])
               ].filter(Boolean)} />
-              {/* Description Card (below gallery on all screens) */}
-              <Card className="bg-white/80 border-gold-100 rounded-2xl shadow-xl backdrop-blur-md mt-4">
+            {/* Description */}
+            <Card className="bg-white/80 border-gray-200 rounded-2xl shadow-xl backdrop-blur-md mt-4">
                 <CardHeader>
-                  <CardTitle className="text-2xl font-bold text-gold-500 flex items-center gap-2">
+                <CardTitle className="text-2xl font-bold text-red-500 flex items-center gap-2">
                     <FileText className="h-6 w-6 mr-2" />
                     Description
                   </CardTitle>
@@ -438,82 +320,43 @@ const ListingDetail = () => {
                 </CardContent>
               </Card>
             </div>
-            {/* Right: Key Details and Contact Card */}
-            <div className="lg:col-span-1 flex flex-col gap-8">
-              {/* Key Details Card */}
-              <Card className="bg-white/80 border-gold-100 rounded-2xl shadow-xl backdrop-blur-md">
-                <CardHeader>
-                  <CardTitle className="text-2xl font-bold text-gold-500 flex items-center gap-2">
-                    <MapPin className="h-6 w-6 mr-2" />
-                    Key Details
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="prose prose-gold dark:prose-invert max-w-none">
-                  <div className="grid grid-cols-1 gap-8">
-                    {/* City */}
-                    {listing.city && (
-                      <>
-                        <div className="flex items-center gap-2 font-semibold text-gold-500"><MapPin className="h-5 w-5" />City</div>
-                        <p className="text-[var(--portal-text-secondary)] bg-gold-50/40 p-3 rounded-lg flex items-center gap-2">
-                          {listing.city}
-                        </p>
-                      </>
-                    )}
-                    {/* Progress Status */}
-                    {listing.progress_status && (
-                      <>
-                        <div className="flex items-center gap-2 font-semibold text-gold-500"><ThumbsUp className="h-5 w-5" />Progress</div>
-                        <p className="text-[var(--portal-text-secondary)] bg-gold-50/40 p-3 rounded-lg flex items-center gap-2">
-                          {listing.progress_status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                        </p>
-                      </>
-                    )}
-                    {/* Bank Option */}
-                    {listing.bank_option !== undefined && (
-                      <>
-                        <div className="flex items-center gap-2 font-semibold text-gold-500"><Banknote className="h-5 w-5" />Bank Option</div>
-                        <p className="text-[var(--portal-text-secondary)] bg-gold-50/40 p-3 rounded-lg flex items-center gap-2">
-                          {listing.bank_option ? 'Available' : 'Not Available'}
-                        </p>
-                      </>
-                    )}
-                    {/* Down Payment Percent */}
-                    {listing.down_payment_percent !== undefined && (
-                      <>
-                        <div className="flex items-center gap-2 font-semibold text-gold-500"><DollarSign className="h-5 w-5" />Down Payment (%)</div>
-                        <p className="text-[var(--portal-text-secondary)] bg-gold-50/40 p-3 rounded-lg flex items-center gap-2">
-                          {listing.down_payment_percent}%
-                        </p>
-                      </>
-                    )}
-                    {/* Location (legacy) */}
-                    {listing.location && (
-                      <>
-                        <div className="flex items-center gap-2 font-semibold text-gold-500"><MapPin className="h-5 w-5" />Location</div>
-                        <p className="text-[var(--portal-text-secondary)] bg-gold-50/40 p-3 rounded-lg flex items-center gap-2">
-                          {listing.location}
-                        </p>
-                      </>
-                    )}
-                    {/* Price */}
-                    <div className="flex items-center gap-2 font-semibold text-gold-500"><Banknote className="h-5 w-5" />Price</div>
-                    <p className="text-[var(--portal-text-secondary)] bg-gold-50/40 p-3 rounded-lg flex items-center gap-2">
-                      {listing.price === null || listing.price === undefined ? 'Call for price' : formatCurrency(listing.price)}
-                    </p>
-                    {/* Listed Date */}
-                    <div className="flex items-center gap-2 font-semibold text-gold-500"><Calendar className="h-5 w-5" />Listed</div>
-                    <p className="text-[var(--portal-text-secondary)] bg-gold-50/40 p-3 rounded-lg flex items-center gap-2">
-                      {formatDate(listing.created_at)}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-              {/* Contact Card (updated) */}
-              <div className="bg-white/80 border-gold-100 rounded-2xl p-8 shadow-xl backdrop-blur-md sticky top-4 flex flex-col gap-6">
-                <h2 className="text-xl font-bold text-black flex items-center gap-2 mb-2">
-                  <Phone className="h-5 w-5 mr-1 text-black" /> Contact Agent
-                </h2>
-                <div className="flex items-center gap-4 mb-2">
+          {/* Right: Property Details and Agent Card */}
+          <div className="lg:col-span-1 flex flex-col gap-8">
+            {/* Property Details Card */}
+            <Card className="bg-white/80 border-gray-200 rounded-2xl shadow-xl backdrop-blur-md sticky top-4">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-red-500 flex items-center gap-2">
+                  <Tag className="h-5 w-5 mr-1 text-red-500" /> Property Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4">
+                  {listing.city && (
+                    <div className="flex items-center gap-2 font-semibold text-gold-500"><MapPin className="h-5 w-5" />City: <span className="text-[var(--portal-text-secondary)]">{listing.city}</span></div>
+                  )}
+                  {listing.progress_status && (
+                    <div className="flex items-center gap-2 font-semibold text-blue-500"><Home className="h-5 w-5" />Progress: <span className="text-[var(--portal-text-secondary)]">{listing.progress_status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</span></div>
+                  )}
+                  {listing.bank_option !== undefined && (
+                    <div className="flex items-center gap-2 font-semibold text-green-600"><Banknote className="h-5 w-5" />Bank Option: <span className="text-[var(--portal-text-secondary)]">{listing.bank_option ? 'Available' : 'Not Available'}</span></div>
+                  )}
+                  {listing.down_payment_percent !== undefined && (
+                    <div className="flex items-center gap-2 font-semibold text-gold-500"><DollarSign className="h-5 w-5" />Down Payment: <span className="text-[var(--portal-text-secondary)]">{listing.down_payment_percent}%</span></div>
+                  )}
+                  <div className="flex items-center gap-2 font-semibold text-gold-500"><Banknote className="h-5 w-5" />Price: <span className="text-[var(--portal-text-secondary)]">{listing.price === null || listing.price === undefined ? 'Call for price' : formatCurrency(listing.price)}</span></div>
+                  <div className="flex items-center gap-2 font-semibold text-gold-500"><Calendar className="h-5 w-5" />Listed: <span className="text-[var(--portal-text-secondary)]">{formatDate(listing.created_at)}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+            {/* Agent Card */}
+            <Card className="bg-white/80 border-gray-200 rounded-2xl shadow-xl backdrop-blur-md mt-4">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-red-500 flex items-center gap-2">
+                  <Phone className="h-5 w-5 mr-1 text-red-500" /> Contact Agent
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 mb-4">
                   <div className="w-16 h-16 rounded-full bg-black overflow-hidden border-2 border-gold-300 flex items-center justify-center">
                     {agent.avatar_url ? (
                       <img
@@ -538,7 +381,7 @@ const ListingDetail = () => {
                   {agent.phone_number && (
                     <a
                       href={`tel:${agent.phone_number}`}
-                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-gold-500/90 text-black rounded-lg hover:bg-gold-600 transition-colors font-semibold shadow-md"
+                      className="w-full inline-flex items-center justify-center gap-3 px-4 py-2.5 bg-red-500/90 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold shadow-md"
                     >
                       <Phone className="h-5 w-5" />
                       Call {agent.first_name}
@@ -567,11 +410,11 @@ const ListingDetail = () => {
                     </a>
                   )}
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </div>
+      </main>
     </>
   );
 };
