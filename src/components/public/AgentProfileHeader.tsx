@@ -1,9 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Mail, MapPin, Briefcase, Award, Calendar, MessageCircle, Send, Building2, BadgeCheck, Share2 } from 'lucide-react';
+import { Phone, Mail, MapPin, Briefcase, Award, Calendar, Building2, BadgeCheck, Share2, MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Copy, Check } from 'lucide-react';
 
 interface ListingCategory {
   id: string;
@@ -84,6 +87,28 @@ const AgentProfileHeader = ({
     if (range) priceRangeIds.add(range.id);
   });
 
+  const isMobile = useIsMobile();
+  const [copied, setCopied] = React.useState(false);
+
+  // Get current profile URL
+  const profileUrl = window.location.href;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(profileUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const shareToWhatsApp = () => {
+    const text = encodeURIComponent(`Check out this real estate agent: ${profileUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
+  const shareToTelegram = () => {
+    const text = encodeURIComponent(`Check out this real estate agent: ${profileUrl}`);
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(profileUrl)}&text=${text}`, '_blank');
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -92,19 +117,18 @@ const AgentProfileHeader = ({
       className="relative overflow-hidden rounded-2xl border border-[var(--portal-border)] bg-white shadow-lg"
     >
       <div className="relative z-10 px-8 pt-8 pb-6">
-        <div className="flex flex-col md:flex-row gap-8">
+        <div className={`flex ${isMobile ? 'flex-col items-center gap-4' : 'flex-col md:flex-row gap-8'}`}> 
           {/* Avatar Section */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.4 }}
-            className="relative flex-shrink-0"
+            className={`relative flex-shrink-0 ${isMobile ? '' : ''}`}
           >
             {/* Properties count badge */}
             <Badge className="absolute -top-2 -right-2 z-20 bg-red-500 text-white border-2 border-white px-3 py-1.5 text-sm font-bold shadow-lg">
               {listings.length} {listings.length === 1 ? 'Property' : 'Properties'}
             </Badge>
-            
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-white shadow-lg bg-[var(--portal-bg-hover)]">
               {avatarUrl ? (
                 <img 
@@ -117,33 +141,23 @@ const AgentProfileHeader = ({
                   {firstName.charAt(0)}{lastName.charAt(0)}
                 </div>
               )}
-              
-              {/* Verified badge */}
-              <div className="absolute bottom-2 right-2 bg-green-500 text-white p-1.5 rounded-full text-xs font-bold shadow-lg">
-                <BadgeCheck className="w-4 h-4" />
-              </div>
             </div>
           </motion.div>
-          
           {/* Info Section */}
-          <div className="flex-1">
+          <div className={`flex-1 w-full ${isMobile ? 'flex flex-col items-center text-center' : ''}`}>
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.4 }}
             >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3">
+              <div className={`flex flex-col ${isMobile ? 'items-center gap-2 mb-3' : 'md:flex-row md:items-center md:justify-between gap-4 mb-3'}`}>
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className={`flex items-center gap-2 mb-1 ${isMobile ? 'justify-center' : ''}`}>
                     <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--portal-text)]">
                       {firstName} {lastName}
                     </h1>
-                    <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                      <BadgeCheck className="w-3 h-3 mr-1" /> Verified
-                    </Badge>
                   </div>
-                  
-                  <div className="flex flex-wrap items-center gap-3 text-[var(--portal-text-secondary)]">
+                  <div className={`flex flex-wrap items-center gap-3 text-[var(--portal-text-secondary)] ${isMobile ? 'justify-center' : ''}`}>
                     {career && (
                       <div className="inline-flex items-center gap-1.5 text-sm font-medium">
                         <Briefcase className="h-4 w-4 text-gold-500" />
@@ -164,15 +178,43 @@ const AgentProfileHeader = ({
                     )}
                   </div>
                 </div>
-                
-                <div>
-                  <Button variant="outline" size="sm" className="bg-white hover:bg-gray-100 border border-gray-200">
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share Profile
-                  </Button>
+                <div className={isMobile ? 'mt-2' : ''}>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="bg-white hover:bg-gray-100 border border-gray-200">
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share Profile
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2 bg-[var(--portal-card-bg)] border-[var(--portal-border)] shadow-lg rounded-md">
+                      <div className="grid gap-2">
+                        <Button
+                          variant="ghost"
+                          className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                          onClick={copyToClipboard}
+                        >
+                          {copied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
+                          {copied ? 'Link Copied!' : 'Copy Link'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                          onClick={shareToWhatsApp}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                          onClick={shareToTelegram}
+                        >
+                          <Send className="h-4 w-4 mr-2 text-blue-500" /> Telegram
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
-              
               <motion.p 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -181,7 +223,6 @@ const AgentProfileHeader = ({
               >
                 {agentDescription}
               </motion.p>
-              
               {/* Contact buttons */}
               {phoneNumber && (
                 <div className="mt-2">
@@ -194,7 +235,6 @@ const AgentProfileHeader = ({
             </motion.div>
           </div>
         </div>
-        
         {/* Stats Section */}
         {listings.length > 0 && (
           <motion.div

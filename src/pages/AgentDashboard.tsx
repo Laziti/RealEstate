@@ -291,7 +291,7 @@ const AgentDashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[var(--portal-border)]">
           <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-[var(--portal-text)]">
+            <h1 className="text-2xl font-bold text-[var(--portal-text)] md:block hidden">
               {activeTab === 'dashboard' && 'Dashboard'}
               {activeTab === 'listings' && 'My Properties'}
               {activeTab === 'create' && 'Create New Listing'}
@@ -299,80 +299,58 @@ const AgentDashboard = () => {
               {activeTab === 'account' && 'Account Information'}
               {activeTab === 'upgrade' && 'Upgrade to Pro'}
             </h1>
-            </div>
-            
+          </div>
+          
           {/* Share Profile Button */}
-              <div className="flex items-center gap-2">
-                <Popover open={isSharePopoverOpen} onOpenChange={setIsSharePopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)] border-none"
-                    >
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Share My Profile
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-2 bg-[var(--portal-card-bg)] border-[var(--portal-border)] shadow-lg rounded-md">
-                    <div className="grid gap-2">
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                        onClick={copyProfileLinkFromHeader}
-                      >
-                        {copied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
-                        {copied ? 'Link Copied!' : 'Copy Link'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                        onClick={() => handleShareToSocial('whatsapp')}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                        onClick={() => handleShareToSocial('telegram')}
-                      >
-                        <Send className="h-4 w-4 mr-2 text-blue-400" /> Telegram
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                        onClick={() => handleShareToSocial('facebook')}
-                      >
-                        <Facebook className="h-4 w-4 mr-2 text-blue-600" /> Facebook
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                        onClick={() => handleShareToSocial('twitter')}
-                      >
-                        <Twitter className="h-4 w-4 mr-2 text-blue-400" /> Twitter (X)
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                        onClick={() => handleShareToSocial('linkedin')}
-                      >
-                        <Linkedin className="h-4 w-4 mr-2 text-blue-700" /> LinkedIn
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                
+          <div className="flex items-center gap-2 md:justify-end w-full md:w-auto mt-4 md:mt-0 justify-center">
+            <Popover open={isSharePopoverOpen} onOpenChange={setIsSharePopoverOpen}>
+              <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="border-[var(--portal-accent)] text-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/10"
-                  onClick={() => window.open(`/${profileData?.slug || ''}`, '_blank')}
+                  className="bg-white border border-red-500 text-red-600 hover:bg-red-50 hover:text-black font-semibold"
                 >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View My Profile
+                  <Share2 className="h-4 w-4 mr-2" />
+                  Share My Profile
                 </Button>
-              </div>
-              </div>
-              
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2 bg-[var(--portal-card-bg)] border-[var(--portal-border)] shadow-lg rounded-md">
+                <div className="grid gap-2">
+                  <Button
+                    variant="ghost"
+                    className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                    onClick={copyProfileLinkFromHeader}
+                  >
+                    {copied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
+                    {copied ? 'Link Copied!' : 'Copy Link'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                    onClick={() => handleShareToSocial('whatsapp')}
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
+                    onClick={() => handleShareToSocial('telegram')}
+                  >
+                    <Send className="h-4 w-4 mr-2 text-blue-500" /> Telegram
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Button
+              variant="outline"
+              className="bg-white border border-red-500 text-red-600 hover:bg-red-50 hover:text-black font-semibold"
+              onClick={() => window.open(`/${profileData?.slug || ''}`, '_blank')}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              View My Profile
+            </Button>
+          </div>
+        </div>
+        
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-6 pb-24 md:pb-6">
               {loading ? (

@@ -283,7 +283,7 @@ const AgentPublicProfile = () => {
       {/* Static Cover */}
       <div className="w-full h-48 md:h-64 relative overflow-hidden group">
         <img 
-          src="/Cover-page.PNG"
+          src="public/Cover-page.PNG"
           alt="Agent Profile Cover" 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
