@@ -19,28 +19,28 @@ const pricingPlans: PricingPlan[] = [
   {
     id: 'monthly-basic',
     name: 'Basic Monthly',
-    price: 800,
+    price: 300,
     duration: '1 month',
     listingsPerMonth: 20,
   },
   {
     id: 'monthly-pro',
     name: 'Pro Monthly',
-    price: 1000,
+    price: 700,
     duration: '1 month',
     listingsPerMonth: 35,
   },
   {
     id: 'semi-annual',
     name: 'Semi-Annual Pro',
-    price: 4000,
+    price: 3000,
     duration: '6 months',
     listingsPerMonth: 50,
   },
   {
     id: 'annual',
     name: 'Annual Pro',
-    price: 6000,
+    price: 5000,
     duration: '1 year',
     listingsPerMonth: 50,
   },
@@ -73,6 +73,7 @@ const UpgradeSidebar = () => {
   const [lastStatus, setLastStatus] = useState<string | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [localSuccess, setLocalSuccess] = useState(false);
+  const [copied, setCopied] = useState<{ [key: string]: boolean }>({});
 
   // Poll for subscription status changes
   useEffect(() => {
@@ -272,11 +273,18 @@ const UpgradeSidebar = () => {
     }
   };
 
+  // Copy handler for payment details
+  const handleCopy = (key: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied((prev) => ({ ...prev, [key]: true }));
+    setTimeout(() => setCopied((prev) => ({ ...prev, [key]: false })), 1500);
+  };
+
   return (
-    <div className="bg-white shadow-xl rounded-2xl p-8 max-w-lg mx-auto border border-gray-200">
-      <h2 className="text-xl font-bold mb-6 text-gold-500 flex items-center">
-        <div className="w-1 h-5 bg-yellow-400 rounded-full mr-2"></div>
-        <span className="text-gray-800">Upgrade to Pro</span>
+    <div className="bg-white shadow-xl rounded-2xl p-8 max-w-3xl mx-auto border border-gray-200">
+      <h2 className="text-2xl font-bold mb-8 flex items-center gap-3 text-[var(--portal-accent)]">
+        <span className="inline-block w-2 h-6 rounded-full bg-[var(--portal-accent)]"></span>
+        <span className="text-[var(--portal-text)]">Upgrade to Pro</span>
       </h2>
 
       {rejectionMessage && (
@@ -285,32 +293,39 @@ const UpgradeSidebar = () => {
         </div>
       )}
 
-      <div className="space-y-6">
-        {pricingPlans.map((plan) => (
+      {/* Responsive grid: 2 cards per row on md+, 1 per row on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {pricingPlans.map((plan, idx) => (
           <motion.div
             key={plan.id}
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.98 }}
-            className={`border border-gray-200 rounded-xl p-6 cursor-pointer transition-all bg-gray-50 shadow-sm ${selectedPlan?.id === plan.id ? 'border-yellow-500 ring-2 ring-yellow-200' : 'hover:border-yellow-400 hover:bg-yellow-50'}`}
+            className={`portal-card cursor-pointer transition-all relative border-2 ${selectedPlan?.id === plan.id ? 'border-[var(--portal-accent)] ring-2 ring-[var(--portal-accent-glow)]' : 'border-[var(--portal-border)] hover:border-[var(--portal-accent)]'} flex flex-col min-h-[260px]`}
             onClick={() => handlePlanSelect(plan)}
           >
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold text-lg text-gray-900">{plan.name}</h3>
-              <div className="text-right">
-                <div className="text-xl font-bold text-yellow-500">{plan.price} ETB</div>
-                <div className="text-sm text-gray-500">per {plan.duration}</div>
+            {/* Icon for each plan */}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-full bg-[var(--portal-accent-glow)] p-3">
+                {idx === 0 && <svg className="w-6 h-6 text-[var(--portal-accent)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 13v7m0 0H7m5 0h5" /></svg>}
+                {idx === 1 && <svg className="w-6 h-6 text-[var(--portal-accent)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M8 12l2 2 4-4" /></svg>}
+                {idx === 2 && <svg className="w-6 h-6 text-[var(--portal-accent)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4" /><path d="M8 12l2 2 4-4" /></svg>}
+                {idx === 3 && <svg className="w-6 h-6 text-[var(--portal-accent)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 0v20m0-20C6.477 2 2 6.477 2 12m10-10c5.523 0 10 4.477 10 10" /></svg>}
               </div>
+              <h3 className="font-bold text-lg text-[var(--portal-text)]">{plan.name}</h3>
             </div>
-            <div className="text-gray-600 mb-4">
-              <span className="font-medium">Up to {plan.listingsPerMonth} listings per month</span>
+            <div className="flex-1 flex flex-col justify-between">
+              <div className="mb-4">
+                <div className="text-2xl font-extrabold text-[var(--portal-accent)] mb-1">{plan.price} ETB</div>
+                <div className="text-sm text-[var(--portal-text-secondary)] mb-2">{plan.duration}</div>
+                <div className="text-[var(--portal-text-secondary)] text-sm">Up to <span className="font-semibold text-[var(--portal-text)]">{plan.listingsPerMonth}</span> listings/month</div>
+              </div>
+              <Button
+                className={`w-full mt-auto font-semibold py-2 rounded-lg transition-all shadow-sm border-2 bg-[var(--portal-accent)] text-white border-[var(--portal-accent)] hover:bg-[var(--portal-button-hover)]`}
+                onClick={(e) => { e.stopPropagation(); handlePlanSelect(plan); }}
+              >
+                {selectedPlan?.id === plan.id ? 'Selected' : 'Select Plan'}
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              className="w-full border-yellow-500 text-yellow-600 hover:bg-yellow-400 hover:text-white font-semibold py-2 rounded-lg transition-all shadow-sm"
-              onClick={() => handlePlanSelect(plan)}
-            >
-              {selectedPlan?.id === plan.id ? 'Selected' : 'Select Plan'}
-            </Button>
           </motion.div>
         ))}
       </div>
@@ -340,110 +355,142 @@ const UpgradeSidebar = () => {
       {/* Upload Receipt Dialog */}
       <Dialog open={!!selectedPlan && !localSuccess && subscriptionStatus !== 'pending'} onOpenChange={(open) => { if (!open) { setSelectedPlan(null); removeReceipt(); } }}>
         <DialogContent className="max-w-md w-full sm:max-w-lg p-0 overflow-y-auto max-h-[90vh]">
-          <div className="p-6">
-            <h3 className="font-semibold mb-2 text-lg text-gray-900">Upload Payment Receipt</h3>
-            <div className="text-gray-600 mb-4">
-              <div>Price: {selectedPlan?.price} ETB</div>
-              <div>Duration: {selectedPlan?.duration}</div>
-              <div>Listings: {selectedPlan?.listingsPerMonth} per month</div>
-            </div>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 mb-4">
-              {/*
-                Note: The file input is visually hidden but accessible for mobile compatibility.
-                Using opacity: 0 and absolute positioning ensures the input is clickable/tappable on all devices.
-                The capture attribute helps some mobile browsers open the camera/gallery directly.
-              */}
-              <label
-                htmlFor="receipt"
-                className="flex flex-col items-center justify-center min-h-[120px] cursor-pointer touch-manipulation bg-white hover:bg-gray-100 rounded-lg border border-dashed border-gray-300 p-4 transition-colors relative"
-                style={{ touchAction: 'manipulation', position: 'relative', zIndex: 1 }}
-              >
-                <input
-                  type="file"
-                  id="receipt"
-                  accept="image/*,application/pdf"
-                  capture="environment"
-                  onChange={handleReceiptChange}
-                  disabled={isSubmitting}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    opacity: 0,
-                    zIndex: 2,
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  }}
-                  tabIndex={0}
-                  aria-label="Upload payment receipt"
-                />
-                {receipt ? (
-                  <div className="flex flex-col items-center justify-center min-h-[120px]">
-                    {receiptPreview ? (
-                      <img src={receiptPreview} alt="Receipt preview" className="max-h-40 rounded mb-2" />
-                    ) : (
-                      <div className="text-xs text-gray-500 mb-2">PDF file selected</div>
-                    )}
-                    <div className="flex items-center space-x-2 text-center mb-4">
-                      <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                      <span className="text-sm break-all max-w-[200px]">{receipt.name}</span>
+          <div className="p-0">
+            <div className="portal-card rounded-b-none rounded-t-2xl border-b-0">
+              <h3 className="font-bold mb-2 text-lg text-[var(--portal-text)]">Upload Payment Receipt</h3>
+              <div className="text-[var(--portal-text-secondary)] mb-4">
+                <div>Price: <span className="font-semibold text-[var(--portal-accent)]">{selectedPlan?.price} ETB</span></div>
+                <div>Duration: {selectedPlan?.duration}</div>
+                <div>Listings: {selectedPlan?.listingsPerMonth} per month</div>
+              </div>
+              {/* Bank Account Info with copy buttons */}
+              <div className="mb-4">
+                <div className="bg-[var(--portal-accent-glow)] border border-[var(--portal-accent)] rounded-lg p-4 flex flex-col gap-2">
+                  <div className="font-semibold text-[var(--portal-text)] mb-1">Pay to one of the following accounts:</div>
+                  <div className="flex flex-col gap-2 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-[var(--portal-text)]">CBE</span>
+                      <span className="font-mono text-[var(--portal-text)] select-all">1000550968057</span>
                       <button
                         type="button"
-                        onClick={removeReceipt}
-                        className="p-2 hover:bg-red-500/10 rounded-full flex-shrink-0 touch-manipulation"
-                        style={{ touchAction: 'manipulation' }}
-                      >
-                        <X className="h-4 w-4 text-red-500" />
-                      </button>
+                        className="ml-2 px-2 py-1 rounded bg-[var(--portal-accent)] text-white text-xs font-semibold hover:bg-[var(--portal-button-hover)] transition min-w-[60px]"
+                        onClick={() => handleCopy('cbe', '1000550968057')}
+                        title="Copy CBE account number"
+                      >{copied.cbe ? 'Copied!' : 'Copy'}</button>
                     </div>
-                    <div className="text-xs text-blue-500 text-center mb-1">
-                      Debug: {receipt.type || 'unknown type'}, {Math.round(receipt.size / 1024)} KB
-                    </div>
-                    <div className="text-xs text-gray-500 text-center">
-                      File selected successfully
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-[var(--portal-text)]">Telebirr</span>
+                      <span className="font-mono text-[var(--portal-text)] select-all">0900424494</span>
+                      <button
+                        type="button"
+                        className="ml-2 px-2 py-1 rounded bg-[var(--portal-accent)] text-white text-xs font-semibold hover:bg-[var(--portal-button-hover)] transition min-w-[60px]"
+                        onClick={() => handleCopy('telebirr', '0900424494')}
+                        title="Copy Telebirr number"
+                      >{copied.telebirr ? 'Copied!' : 'Copy'}</button>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <Upload className="h-8 w-8 text-gray-400 mb-3" />
-                    <span className="text-sm text-gray-500 text-center mb-2">
-                      Tap to upload receipt (image or PDF, max 15MB)
-                    </span>
-                  </>
-                )}
-              </label>
-            </div>
-            {error && (
-              <div className="text-red-500 text-sm mb-2">{error}</div>
-            )}
-            {!receipt && !error && (
-              <div className="text-orange-500 text-xs mb-2">
-                No file detected. If you tried to select a file and nothing happened, your phone or browser may not support this file type.
+                </div>
               </div>
-            )}
-            <div className="flex justify-end space-x-3">
-              <Button
-                variant="outline"
-                onClick={() => { setSelectedPlan(null); removeReceipt(); }}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={!receipt || isSubmitting}
-                className="bg-gold-500 text-black hover:bg-gold-600"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Request'
-                )}
-              </Button>
+            </div>
+            <div className="portal-card rounded-t-none rounded-b-2xl border-t-0 border-t-transparent border-b border-[var(--portal-border)]">
+              <div className="border-2 border-dashed border-[var(--portal-border)] rounded-lg p-6 mb-4 bg-white">
+                {/*
+                  Note: The file input is visually hidden but accessible for mobile compatibility.
+                  Using opacity: 0 and absolute positioning ensures the input is clickable/tappable on all devices.
+                  The capture attribute helps some mobile browsers open the camera/gallery directly.
+                */}
+                <label
+                  htmlFor="receipt"
+                  className="flex flex-col items-center justify-center min-h-[120px] cursor-pointer touch-manipulation bg-white hover:bg-[var(--portal-bg-hover)] rounded-lg border border-dashed border-[var(--portal-border)] p-4 transition-colors relative"
+                  style={{ touchAction: 'manipulation', position: 'relative', zIndex: 1 }}
+                >
+                  <input
+                    type="file"
+                    id="receipt"
+                    accept="image/*,application/pdf"
+                    capture="environment"
+                    onChange={handleReceiptChange}
+                    disabled={isSubmitting}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      opacity: 0,
+                      zIndex: 2,
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    }}
+                    tabIndex={0}
+                    aria-label="Upload payment receipt"
+                  />
+                  {receipt ? (
+                    <div className="flex flex-col items-center justify-center min-h-[120px]">
+                      {receiptPreview ? (
+                        <img src={receiptPreview} alt="Receipt preview" className="max-h-40 rounded mb-2" />
+                      ) : (
+                        <div className="text-xs text-[var(--portal-text-secondary)] mb-2">PDF file selected</div>
+                      )}
+                      <div className="flex items-center space-x-2 text-center mb-4">
+                        <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                        <span className="text-sm break-all max-w-[200px]">{receipt.name}</span>
+                        <button
+                          type="button"
+                          onClick={removeReceipt}
+                          className="p-2 hover:bg-red-500/10 rounded-full flex-shrink-0 touch-manipulation"
+                          style={{ touchAction: 'manipulation' }}
+                        >
+                          <X className="h-4 w-4 text-red-500" />
+                        </button>
+                      </div>
+                      <div className="text-xs text-blue-500 text-center mb-1">
+                        Debug: {receipt.type || 'unknown type'}, {Math.round(receipt.size / 1024)} KB
+                      </div>
+                      <div className="text-xs text-[var(--portal-text-secondary)] text-center">
+                        File selected successfully
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-[var(--portal-border)] mb-3" />
+                      <span className="text-sm text-[var(--portal-text-secondary)] text-center mb-2">
+                        Tap to upload receipt (image or PDF, max 15MB)
+                      </span>
+                    </>
+                  )}
+                </label>
+              </div>
+              {error && (
+                <div className="text-red-500 text-sm mb-2">{error}</div>
+              )}
+              {!receipt && !error && (
+                <div className="text-orange-500 text-xs mb-2">
+                  No file detected. If you tried to select a file and nothing happened, your phone or browser may not support this file type.
+                </div>
+              )}
+              <div className="flex justify-end space-x-3">
+                <Button
+                  onClick={() => { setSelectedPlan(null); removeReceipt(); }}
+                  disabled={isSubmitting}
+                  className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-button-hover)]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!receipt || isSubmitting}
+                  className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-button-hover)]"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Request'
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
