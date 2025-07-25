@@ -29,17 +29,17 @@ const PLAN_DETAILS = {
   'monthly-basic': {
     name: 'Monthly Basic',
     listingsPerMonth: 20,
-    price: 800,
+    price: 300,
   },
   'monthly-premium': {
     name: 'Monthly Premium',
     listingsPerMonth: 50,
-    price: 1500,
+    price: 1200,
   },
   'semi-annual': {
     name: 'Semi-Annual',
     listingsPerMonth: 100,
-    price: 4000,
+    price: 3000,
   }
 };
 

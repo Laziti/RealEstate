@@ -419,22 +419,38 @@ const AdminUsersPage = () => {
 
   const handleCreateUser = async () => {
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-        options: {
-          data: {
-            first_name: newUser.first_name,
-            last_name: newUser.last_name,
-            role: 'agent'
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      // Create user using Supabase Functions client
+      const { data: userData, error: createError } = await supabase.functions.invoke(
+        'create-user',
+        {
+          body: {
+            email: newUser.email,
+            password: newUser.password,
+            user_metadata: {
+              first_name: newUser.first_name,
+              last_name: newUser.last_name,
+              role: 'agent',
+              created_by_admin: true
+            }
           }
         }
-      });
+      );
 
-      if (authError) throw authError;
+      if (createError) {
+        throw createError;
+      }
 
-      if (!authData.user) throw new Error('No user returned from auth signup');
+      if (!userData?.user?.id) {
+        throw new Error('No user returned from user creation');
+      }
+      
+      const userId = userData.user.id;
 
       // Calculate subscription end date if pro
       let subscription_end = null;
@@ -452,7 +468,6 @@ const AdminUsersPage = () => {
             break;
         }
       }
-
       // Map subscription_duration to allowed DB values for insert only
       let dbSubscriptionDuration: 'month' | '6months' | 'year';
       switch (newUser.subscription_duration) {
@@ -466,13 +481,12 @@ const AdminUsersPage = () => {
           dbSubscriptionDuration = 'year';
           break;
       }
-
       // Create profile
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .insert({
-          id: authData.user.id,
-          user_id: authData.user.id,
+          id: userId,
+          user_id: userId,
           first_name: newUser.first_name,
           last_name: newUser.last_name,
           status: 'active',
@@ -492,19 +506,17 @@ const AdminUsersPage = () => {
         console.error('Profile insert error:', profileError, profileData);
         throw profileError;
       }
-
       // Create user role
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .insert({
-          user_id: authData.user.id,
+          user_id: userId,
           role: 'agent'
         });
       if (roleError) {
         console.error('User role insert error:', roleError, roleData);
         throw roleError;
       }
-
       // Generate unique slug for public profile
       const baseSlug = `${newUser.first_name}-${newUser.last_name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       let slug = baseSlug;
@@ -530,16 +542,14 @@ const AdminUsersPage = () => {
       const { error: slugUpdateError } = await supabase
         .from('profiles')
         .update({ slug })
-        .eq('id', authData.user.id);
+        .eq('id', userId);
       if (slugUpdateError) {
         console.error('Slug update error:', slugUpdateError);
         throw slugUpdateError;
       }
-
       toast.success('User created successfully');
       setCreateDialogOpen(false);
       fetchUsers(); // Refresh user list
-      
       // Reset form
       setNewUser({
         email: '',

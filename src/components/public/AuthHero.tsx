@@ -3,8 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowRight, CheckCircle, Link as LinkIcon, Home, DollarSign } from 'lucide-react';
 import { createSlug } from '@/lib/formatters';
+import { toast } from 'sonner';
 
 const REAL_ESTATE_COMPANIES = [
   "Noah Real Estate",
@@ -138,42 +142,38 @@ const AuthHero: React.FC = () => {
     }
     setIsLoading(true);
     const companyToSubmit = signUpCompany === 'Other' ? signUpOtherCompany : signUpCompany;
+
     try {
-      // Check if Supabase URL and key are defined
-      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-        throw new Error("Missing Supabase credentials. Please check ENV-SETUP.md for configuration instructions.");
-      }
-      
-      const { data: signUpAuthData, error: signUpError } = await supabase.auth.signUp({
-        email: signUpEmail,
-        password: signUpPassword,
-        options: {
-          data: {
-            first_name: signUpFirstName,
-            last_name: signUpLastName,
-            phone_number: signUpPhoneNumber,
-            company: companyToSubmit,
+      // Create user using Supabase Functions client
+      const { data: userData, error: createError } = await supabase.functions.invoke(
+        'create-user',
+        {
+          body: {
+            email: signUpEmail,
+            password: signUpPassword,
+            user_metadata: {
+              first_name: signUpFirstName,
+              last_name: signUpLastName,
+              phone_number: signUpPhoneNumber,
+              company: companyToSubmit,
+            }
           }
         }
-      });
-      
-      if (signUpError) {
-        // Handle Supabase auth errors with more specific messages
-        if (signUpError.message === 'Invalid API key') {
-          throw new Error('Authentication error: Invalid Supabase API key. Please check your environment variables.');
-        } else {
-          throw signUpError;
-        }
+      );
+
+      if (createError) {
+        throw createError;
       }
-      
-      if (!signUpAuthData.user) throw new Error("Sign up successful, but no user data returned.");
-      
+
+      if (!userData?.user?.id) {
+        throw new Error('No user returned from user creation');
+      }
+
       // Generate slug from first and last name
       const slug = createSlug(`${signUpFirstName} ${signUpLastName}`);
-      
       const { error: profileError } = await supabase.from('profiles').insert({
-        id: signUpAuthData.user.id,
-        user_id: signUpAuthData.user.id,
+        id: userData.user.id,
+        user_id: userData.user.id,
         first_name: signUpFirstName,
         last_name: signUpLastName,
         phone_number: signUpPhoneNumber,
@@ -181,22 +181,17 @@ const AuthHero: React.FC = () => {
         status: 'active',
         slug,
       });
-      
       if (profileError) {
         console.error('Error creating profile:', profileError);
         throw new Error('Account created, but profile setup failed. Please contact support.');
       }
-      
-      const { error: roleError } = await supabase.from('user_roles').insert({ user_id: signUpAuthData.user.id, role: 'agent' });
+      const { error: roleError } = await supabase.from('user_roles').insert({ user_id: userData.user.id, role: 'agent' });
       if (roleError) {
         console.error('Error setting user role:', roleError);
         throw new Error('Account created, but role assignment failed. Please contact support.');
       }
-      
       setSignUpSuccess(true);
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
+      toast.success('Account created successfully! Please check your email to verify your account.');
       setActiveTab('signIn');
       setSignInEmail(signUpEmail);
       setSignInPassword('');
@@ -208,15 +203,7 @@ const AuthHero: React.FC = () => {
       setSignUpCompany('');
       setSignUpOtherCompany('');
     } catch (error: any) {
-      // Provide a more detailed error message for common issues
       let errorMsg = error.message || 'Failed to sign up.';
-      
-      if (errorMsg.includes('Invalid API key')) {
-        errorMsg = 'Authentication error: Missing or invalid Supabase credentials. Please check ENV-SETUP.md for setup instructions.';
-      } else if (errorMsg.includes('rate limit')) {
-        errorMsg = 'Too many sign-up attempts. Please try again in a few minutes.';
-      }
-      
       setErrorMessage(errorMsg);
       console.error('Sign up error:', error);
     } finally {
