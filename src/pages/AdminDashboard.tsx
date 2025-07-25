@@ -4,41 +4,8 @@ import AdminSidebar from '@/components/AdminSidebar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
 import { Users, DollarSign, Clock, BarChart3 } from 'lucide-react';
-
-// Mock data for demonstration
-const userGrowthData = [
-  { month: 'Jan', users: 120 },
-  { month: 'Feb', users: 150 },
-  { month: 'Mar', users: 200 },
-  { month: 'Apr', users: 250 },
-  { month: 'May', users: 300 },
-  { month: 'Jun', users: 400 },
-];
-
-const listingsByCategory = [
-  { name: 'Residential', value: 300 },
-  { name: 'Commercial', value: 120 },
-  { name: 'Land', value: 80 },
-  { name: 'Other', value: 40 },
-];
-
-const statCards = [
-  {
-    title: 'New Users This Month',
-    value: 45,
-    icon: <Users className="h-6 w-6 text-[var(--portal-accent)]" />,
-  },
-  {
-    title: 'Pending Payments',
-    value: 7,
-    icon: <Clock className="h-6 w-6 text-[var(--portal-warning)]" />,
-  },
-  {
-    title: 'Revenue',
-    value: '$12,500',
-    icon: <DollarSign className="h-6 w-6 text-[var(--portal-success)]" />,
-  },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useState } from 'react';
 
 const pieColors = [
   'var(--portal-accent)',
@@ -48,6 +15,75 @@ const pieColors = [
 ];
 
 const AdminDashboard = () => {
+  const [userGrowthData, setUserGrowthData] = useState<{ month: string; users: number }[]>([]);
+  const [proNonProData, setProNonProData] = useState([
+    { name: 'Pro Users', value: 0 },
+    { name: 'Non-Pro Users', value: 0 },
+  ]);
+  const [statCards, setStatCards] = useState([
+    { title: 'New Users This Month', value: 0, icon: <Users className="h-6 w-6 text-[var(--portal-accent)]" /> },
+    { title: 'Pending Payments', value: 0, icon: <Clock className="h-6 w-6 text-[var(--portal-warning)]" /> },
+    { title: 'Revenue', value: '$0', icon: <DollarSign className="h-6 w-6 text-[var(--portal-success)]" /> },
+  ]);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      // User Growth (last 6 months)
+      const now = new Date();
+      const months = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+        return d.toLocaleString('default', { month: 'short', year: '2-digit' });
+      });
+      const userCounts: { [key: string]: number } = {};
+      for (const month of months) userCounts[month] = 0;
+      const { data: profiles } = await supabase.from('profiles').select('created_at');
+      if (profiles) {
+        profiles.forEach((p: any) => {
+          const d = new Date(p.created_at);
+          const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+          if (userCounts[key] !== undefined) userCounts[key]++;
+        });
+      }
+      setUserGrowthData(months.map(month => ({ month, users: userCounts[month] })));
+
+      // Pro/Non-Pro Users
+      const [{ count: proCount }, { count: freeCount }] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('subscription_status', 'pro'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('subscription_status', 'free'),
+      ]);
+      setProNonProData([
+        { name: 'Pro Users', value: proCount || 0 },
+        { name: 'Non-Pro Users', value: freeCount || 0 },
+      ]);
+
+      // New Users This Month
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count: newUsersThisMonth } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startOfMonth);
+      // Revenue and Pending Payments
+      const { data: subscriptionRequests } = await supabase
+        .from('subscription_requests')
+        .select('amount, status');
+      let revenue = 0;
+      let pendingPayments = 0;
+      if (subscriptionRequests) {
+        for (const req of subscriptionRequests) {
+          if (req.status === 'approved') revenue += req.amount;
+          if (req.status === 'pending') pendingPayments++;
+        }
+      }
+      setStatCards(cards => cards.map(card => {
+        if (card.title === 'New Users This Month') return { ...card, value: newUsersThisMonth || 0 };
+        if (card.title === 'Pending Payments') return { ...card, value: pendingPayments };
+        if (card.title === 'Revenue') return { ...card, value: `$${revenue.toLocaleString()}` };
+        return card;
+      }));
+    };
+    fetchAnalytics();
+  }, []);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen w-full md:pl-72 bg-white">
@@ -96,21 +132,21 @@ const AdminDashboard = () => {
                       </div>
                     </CardContent>
                   </Card>
-                  {/* Listings by Category Pie Chart */}
+                  {/* Pro vs Non-Pro Users Pie Chart */}
                   <Card className="flex-1 bg-white border-[var(--portal-border)] shadow-none p-4">
                     <CardHeader className="p-0 mb-2">
                       <div className="flex items-center gap-2">
                         <BarChart3 className="h-5 w-5 text-[var(--portal-accent)]" />
-                        <CardTitle className="text-base font-semibold text-[var(--portal-text)]">Listings by Category</CardTitle>
+                        <CardTitle className="text-base font-semibold text-[var(--portal-text)]">Pro vs Non-Pro Users</CardTitle>
                       </div>
-                      <CardDescription className="text-[var(--portal-text-secondary)]">Distribution of listings</CardDescription>
+                      <CardDescription className="text-[var(--portal-text-secondary)]">Distribution of user subscriptions</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0 pt-2">
                       <div className="w-full h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={listingsByCategory}
+                              data={proNonProData}
                               dataKey="value"
                               nameKey="name"
                               cx="40%"
@@ -118,7 +154,7 @@ const AdminDashboard = () => {
                               outerRadius={80}
                               label
                             >
-                              {listingsByCategory.map((entry, index) => (
+                              {proNonProData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
                               ))}
                             </Pie>
