@@ -169,26 +169,25 @@ const AuthHero: React.FC = () => {
         throw new Error('No user returned from user creation');
       }
 
-      // Generate slug from first and last name
+      // The Edge Function now handles profile and role creation
+      // We just need to update the profile with additional details if needed
+      const userId = userData.user.id;
+
+      // Update profile with slug and additional details
       const slug = createSlug(`${signUpFirstName} ${signUpLastName}`);
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: userData.user.id,
-        user_id: userData.user.id,
-        first_name: signUpFirstName,
-        last_name: signUpLastName,
-        phone_number: signUpPhoneNumber,
-        company: companyToSubmit,
-        status: 'active',
-        slug,
-      });
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        throw new Error('Account created, but profile setup failed. Please contact support.');
-      }
-      const { error: roleError } = await supabase.from('user_roles').insert({ user_id: userData.user.id, role: 'agent' });
-      if (roleError) {
-        console.error('Error setting user role:', roleError);
-        throw new Error('Account created, but role assignment failed. Please contact support.');
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          slug,
+          phone_number: signUpPhoneNumber,
+          company: companyToSubmit
+        })
+        .eq('id', userId);
+      
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
+        // Don't throw error here as the user was created successfully
+        console.warn('Profile update failed, but user was created');
       }
       setSignUpSuccess(true);
       toast.success('Account created successfully! Please check your email to verify your account.');

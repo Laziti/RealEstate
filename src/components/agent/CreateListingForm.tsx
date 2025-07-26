@@ -22,6 +22,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { createListingSlug } from "@/components/public/ListingCard";
 import { useNavigate } from 'react-router-dom';
 
+function sanitizeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
 const listingSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
@@ -208,12 +212,45 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
         throw new Error('User not authenticated');
       }
 
+      // Check if user has a profile, create one if not
+      const { data: existingProfile, error: profileCheckError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileCheckError) {
+        console.error('Error checking profile:', profileCheckError);
+        throw new Error('Failed to verify user profile');
+      }
+
+      if (!existingProfile) {
+        // Create a basic profile for the user
+        const { error: createProfileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            user_id: user.id,
+            first_name: user.user_metadata?.first_name || 'User',
+            last_name: user.user_metadata?.last_name || 'User',
+            status: 'active',
+            listing_limit: { type: 'month', value: 5 },
+            subscription_status: 'free',
+            social_links: {},
+          });
+
+        if (createProfileError) {
+          console.error('Error creating profile:', createProfileError);
+          throw new Error('Failed to create user profile. Please contact support.');
+        }
+      }
+
       // 1. Upload main image
       if (!mainImage) {
         throw new Error('Main image is required');
       }
 
-      const mainImageFileName = `${user.id}/${Date.now()}-main-${mainImage.name}`;
+      const mainImageFileName = `${user.id}/${Date.now()}-main-${sanitizeFileName(mainImage.name)}`;
       const { data: mainImageData, error: mainImageError } = await supabase.storage
         .from('listing-images')
         .upload(mainImageFileName, mainImage);
@@ -231,7 +268,7 @@ const CreateListingForm = ({ onSuccess }: CreateListingFormProps) => {
       
       for (let i = 0; i < additionalImages.length; i++) {
         const file = additionalImages[i];
-        const fileName = `${user.id}/${Date.now()}-${i}-${file.name}`;
+        const fileName = `${user.id}/${Date.now()}-${i}-${sanitizeFileName(file.name)}`;
         
         const { data: additionalImageData, error: additionalImageError } = await supabase.storage
           .from('listing-images')

@@ -34,12 +34,49 @@ serve(async (req) => {
 
   try {
     // Get the request body
-    const payload: CreateUserPayload = await req.json()
+    let payload: CreateUserPayload;
+    try {
+      payload = await req.json();
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body', details: e instanceof Error ? e.message : e }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
 
     // Validate required fields
-    if (!payload.email || !payload.password || !payload.user_metadata) {
-      throw new Error('Missing required fields')
+    if (!payload.email) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: email' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
+    if (!payload.password) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: password' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    if (!payload.user_metadata) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: user_metadata' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    if (!payload.user_metadata.first_name) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: user_metadata.first_name' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    if (!payload.user_metadata.last_name) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required field: user_metadata.last_name' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    // Log payload for debugging
+    console.log('Received payload:', payload);
 
     // Create Supabase admin client
     const supabaseAdmin = createClient(
@@ -67,6 +104,38 @@ serve(async (req) => {
 
     if (!user) {
       throw new Error('Failed to create user')
+    }
+
+    // Create profile using service role (bypasses RLS)
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: user.id,
+        user_id: user.id,
+        first_name: payload.user_metadata.first_name,
+        last_name: payload.user_metadata.last_name,
+        status: 'active', // always set to active
+        listing_limit: { type: 'month', value: 5 },
+        subscription_status: 'free',
+        social_links: {},
+      });
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError)
+      throw new Error(`User created but profile creation failed: ${profileError.message}`)
+    }
+
+    // Always insert user role as 'agent'
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .insert({
+        user_id: user.id,
+        role: 'agent'
+      });
+
+    if (roleError) {
+      console.error('Role creation error:', roleError)
+      throw new Error(`User and profile created but role assignment failed: ${roleError.message}`)
     }
 
     return new Response(

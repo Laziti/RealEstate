@@ -21,11 +21,40 @@ import { Loader2, Upload, X, Plus } from 'lucide-react';
 const listingSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
-  price: z.coerce.number().positive('Price must be a positive number'),
-  location: z.string().min(3, 'Location must be at least 3 characters'),
+  price: z.preprocess((val) => val === '' || val === undefined ? undefined : Number(val), z.number().positive('Price must be a positive number').optional()),
+  city: z.enum([
+    'Addis Ababa',
+    'Arada',
+    'Bole',
+    'Gulele',
+    'Kirkos',
+    'Kolfe Keranio',
+    'Lideta',
+    'Nifas Silk-Lafto',
+    'Yeka',
+    'Akaki Kality',
+    'Addis Ketema',
+    'Alem Gena',
+    'Bole Bulbula',
+    'Gerji',
+    'Gotera',
+    'Kality',
+    'Kotebe',
+    'Lafto',
+    'Megenagna',
+    'Merkato',
+    'Saris',
+    'Saris Abo',
+    'Summit',
+    'Tulu Dimtu',
+    'Wello Sefer'
+  ], {
+    required_error: 'Please select a city',
+  }),
   phone_number: z.string().optional(),
   whatsapp_link: z.string().optional(),
-  telegram_link: z.string().optional()
+  telegram_link: z.string().optional(),
+  callForPrice: z.boolean().optional()
 });
 
 type ListingFormValues = z.infer<typeof listingSchema>;
@@ -54,10 +83,11 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
       title: '',
       description: '',
       price: undefined,
-      location: '',
+      city: 'Addis Ababa',
       phone_number: '',
       whatsapp_link: '',
-      telegram_link: ''
+      telegram_link: '',
+      callForPrice: false
     }
   });
 
@@ -95,10 +125,11 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
           title: data.title,
           description: data.description || '',
           price: data.price || undefined,
-          location: data.location || '',
+          city: data.city || 'Addis Ababa',
           phone_number: data.phone_number || '',
           whatsapp_link: data.whatsapp_link || '',
-          telegram_link: data.telegram_link || ''
+          telegram_link: data.telegram_link || '',
+          callForPrice: data.price === null
         });
 
         // Set existing images
@@ -233,8 +264,8 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
       console.log('[EditForm] Price before update:', values.price);
       console.log('[EditForm] Price type before update:', typeof values.price);
       
-      // Ensure price is a clean number
-      const exactPrice = Number(values.price);
+      // Ensure price is a clean number or null if callForPrice
+      const exactPrice = values.callForPrice ? null : Number(values.price);
       console.log('[EditForm] Exact price to store:', exactPrice);
       console.log('[EditForm] Exact price type:', typeof exactPrice);
       console.log('[EditForm] Price toString():', exactPrice.toString());
@@ -244,8 +275,8 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
         .update({
           title: values.title,
           description: values.description,
-          price: exactPrice,  // Use the exact price
-          location: values.location,
+          price: exactPrice,
+          city: values.city,
           main_image_url: mainImageUrl,
           additional_image_urls: additionalImageUrls.length > 0 ? additionalImageUrls : null,
           phone_number: values.phone_number || null,
@@ -255,7 +286,7 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
         })
         .eq('id', listingId)
         .eq('user_id', user.id)
-        .select('id, title, description, price, location, main_image_url, additional_image_urls, phone_number, whatsapp_link, telegram_link, updated_at')
+        .select('id, title, description, price, city, main_image_url, additional_image_urls, phone_number, whatsapp_link, telegram_link, updated_at')
         .single();
 
       if (listingError) throw listingError;
@@ -428,12 +459,39 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
               
               <FormField
                 control={form.control}
-                name="location"
+                name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[var(--portal-label-text)]">Location <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel className="text-[var(--portal-label-text)]">City <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter property location" {...field} className="bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border-[var(--portal-input-border)]" />
+                      <select {...field} className="bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border-[var(--portal-input-border)] rounded-md">
+                        {/* Add city options here */}
+                        <option value="Addis Ababa">Addis Ababa</option>
+                        <option value="Arada">Arada</option>
+                        <option value="Bole">Bole</option>
+                        <option value="Gulele">Gulele</option>
+                        <option value="Kirkos">Kirkos</option>
+                        <option value="Kolfe Keranio">Kolfe Keranio</option>
+                        <option value="Lideta">Lideta</option>
+                        <option value="Nifas Silk-Lafto">Nifas Silk-Lafto</option>
+                        <option value="Yeka">Yeka</option>
+                        <option value="Akaki Kality">Akaki Kality</option>
+                        <option value="Addis Ketema">Addis Ketema</option>
+                        <option value="Alem Gena">Alem Gena</option>
+                        <option value="Bole Bulbula">Bole Bulbula</option>
+                        <option value="Gerji">Gerji</option>
+                        <option value="Gotera">Gotera</option>
+                        <option value="Kality">Kality</option>
+                        <option value="Kotebe">Kotebe</option>
+                        <option value="Lafto">Lafto</option>
+                        <option value="Megenagna">Megenagna</option>
+                        <option value="Merkato">Merkato</option>
+                        <option value="Saris">Saris</option>
+                        <option value="Saris Abo">Saris Abo</option>
+                        <option value="Summit">Summit</option>
+                        <option value="Tulu Dimtu">Tulu Dimtu</option>
+                        <option value="Wello Sefer">Wello Sefer</option>
+                      </select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -506,6 +564,15 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
                 </FormItem>
               )}
             />
+
+            <FormField name="callForPrice" control={form.control} render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-red-600 font-semibold">Call for Price</FormLabel>
+                <FormControl>
+                  <input type="checkbox" checked={field.value} onChange={field.onChange} />
+                </FormControl>
+              </FormItem>
+            )} />
           </div>
           
           <div className="flex justify-between pt-4">

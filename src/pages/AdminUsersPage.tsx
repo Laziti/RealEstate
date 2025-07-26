@@ -450,12 +450,17 @@ const AdminUsersPage = () => {
         throw new Error('No user returned from user creation');
       }
       
+      // The Edge Function now handles profile and role creation
+      // We just need to update the profile with additional details if needed
       const userId = userData.user.id;
 
-      // Calculate subscription end date if pro
-      let subscription_end = null;
+      // Update profile with subscription details and slug if needed
+      const updateData: any = {};
+      
+      // Add subscription details if pro
       if (newUser.subscription_status === 'pro') {
         const now = new Date();
+        let subscription_end = null;
         switch (newUser.subscription_duration) {
           case 'monthly':
             subscription_end = new Date(now.setMonth(now.getMonth() + 1));
@@ -467,57 +472,22 @@ const AdminUsersPage = () => {
             subscription_end = new Date(now.setFullYear(now.getFullYear() + 1));
             break;
         }
+        
+        updateData.subscription_status = 'pro';
+        updateData.subscription_end_date = subscription_end?.toISOString();
       }
-      // Map subscription_duration to allowed DB values for insert only
-      let dbSubscriptionDuration: 'month' | '6months' | 'year';
-      switch (newUser.subscription_duration) {
-        case 'monthly':
-          dbSubscriptionDuration = 'month';
-          break;
-        case '6months':
-          dbSubscriptionDuration = '6months';
-          break;
-        case 'yearly':
-          dbSubscriptionDuration = 'year';
-          break;
+      
+      // Add listing limit if different from default
+      if (newUser.listing_limit.type !== 'month' || newUser.listing_limit.value !== 5) {
+        updateData.listing_limit = newUser.listing_limit.type === 'unlimited' 
+          ? { type: 'unlimited' as const }
+          : { 
+              type: newUser.listing_limit.type as ListingLimitType, 
+              value: newUser.listing_limit.value 
+            };
       }
-      // Create profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          user_id: userId,
-          first_name: newUser.first_name,
-          last_name: newUser.last_name,
-          status: 'active',
-          listing_limit: newUser.listing_limit.type === 'unlimited' 
-            ? { type: 'unlimited' as const }
-            : { 
-                type: newUser.listing_limit.type as ListingLimitType, 
-                value: newUser.listing_limit.value 
-              },
-          subscription_status: newUser.subscription_status,
-          subscription_type: newUser.subscription_status, // fallback for both
-          subscription_duration: dbSubscriptionDuration,
-          subscription_end_date: subscription_end?.toISOString(),
-          social_links: {},
-        });
-      if (profileError) {
-        console.error('Profile insert error:', profileError, profileData);
-        throw profileError;
-      }
-      // Create user role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: userId,
-          role: 'agent'
-        });
-      if (roleError) {
-        console.error('User role insert error:', roleError, roleData);
-        throw roleError;
-      }
-      // Generate unique slug for public profile
+      
+      // Generate and add slug
       const baseSlug = `${newUser.first_name}-${newUser.last_name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       let slug = baseSlug;
       let slugUnique = false;
@@ -538,14 +508,18 @@ const AdminUsersPage = () => {
           slug = `${baseSlug}-${attempt}`;
         }
       }
-      // Update profile with slug
-      const { error: slugUpdateError } = await supabase
-        .from('profiles')
-        .update({ slug })
-        .eq('id', userId);
-      if (slugUpdateError) {
-        console.error('Slug update error:', slugUpdateError);
-        throw slugUpdateError;
+      updateData.slug = slug;
+      
+      // Update profile if we have additional data
+      if (Object.keys(updateData).length > 0) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', userId);
+        if (updateError) {
+          console.error('Profile update error:', updateError);
+          throw updateError;
+        }
       }
       toast.success('User created successfully');
       setCreateDialogOpen(false);
